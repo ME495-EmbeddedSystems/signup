@@ -49,10 +49,6 @@
   var error = document.getElementById('error');
   function fail(msg) { error.textContent = msg; error.hidden = false; }
 
-  if (dot < 1 || !/^[A-Za-z0-9_-]+$/.test(assignment) || !/^[0-9a-f]{32}$/.test(secret)) {
-    fail('This link is incomplete. Please use the full link from your instructor.');
-    return;
-  }
   document.getElementById('title').textContent = 'Create your repository for ' + assignment;
   form.hidden = false;
 
@@ -68,9 +64,16 @@
     error.hidden = true;
     var user = document.getElementById('user').value.trim().replace(/^@/, '');
     if (!/^[A-Za-z0-9-]{1,39}$/.test(user)) { fail('That does not look like a GitHub username.'); return; }
-    var proof = await hmac(secret, assignment + ':' + user.toLowerCase());
+    var proof;
+    try {
+      proof = await hmac(secret, assignment + ':' + user.toLowerCase());
+    } catch (err) {  // e.g. a link with no secret at all
+      fail('This link is incomplete. Please use the full link from your instructor.');
+      return;
+    }
+    // Anything wrong with the link just yields a proof the workflow refuses.
     location.href = 'https://github.com/' + org + '/' + repo + '/issues/new?template=signup.yml' +
-      '&code=' + assignment + '.' + proof;
+      '&code=' + encodeURIComponent(assignment + '.' + proof);
   });
 })();
 </script>
