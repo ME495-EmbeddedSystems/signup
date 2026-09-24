@@ -8,25 +8,27 @@ permissions:
   contents: read
   issues: write
 
-concurrency:
-  group: create-repo
-  cancel-in-progress: false
-
 jobs:
   create:
+    if: github.event.issue.user.type == 'User'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - id: app
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          permission-administration: write
+          permission-contents: read
+          permission-metadata: read
 
       - id: make
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         env:
           MASTER_KEY: ${{ secrets.MASTER_KEY }}
         with:
@@ -106,17 +108,17 @@ jobs:
                 `@${login} your repository is ready: ${url}\n\n` +
                 `Accept the invitation here (if you have not already): ${url}/invitations`);
             } catch (e) {
-              core.setOutput('message', 'Something went wrong creating your repository. Please contact your instructor.');
+              core.setOutput('message', 'Something went wrong creating your repository. Please open your assignment link again in a minute; if it keeps failing, contact your instructor.');
               core.setFailed(e.message);
             }
 
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         if: always()
         env:
           MESSAGE: ${{ steps.make.outputs.message }}
         with:
           script: |
             const body = process.env.MESSAGE ||
-              'Something went wrong creating your repository. Please contact your instructor.';
+              'Something went wrong creating your repository. Please open your assignment link again in a minute; if it keeps failing, contact your instructor.';
             await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
             await github.rest.issues.update({ ...context.repo, issue_number: context.issue.number, state: 'closed' });

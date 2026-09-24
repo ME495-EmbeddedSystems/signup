@@ -7,7 +7,6 @@ Creates the repo if needed, pushes this directory's files, enables Pages, and ge
 org's master key. Safe to re-run: files are refreshed but the org's assignments.json is kept.
 """
 import argparse
-import os
 import secrets
 import shutil
 import subprocess
@@ -17,7 +16,6 @@ from pathlib import Path
 from classroom_lib import GIT_GH_AUTH, die, gh, gh_try, load_config, save_config
 
 ROOT = Path(__file__).resolve().parent.parent
-SKIP = {".git", "__pycache__", ".DS_Store"}
 
 
 def push_files(org, repo):
@@ -28,16 +26,16 @@ def push_files(org, repo):
         if subprocess.run(["git", "checkout", "-q", "-B", "main", "origin/main"],
                           cwd=work, stderr=subprocess.DEVNULL).returncode != 0:
             subprocess.run(["git", "checkout", "-q", "-B", "main"], cwd=work, check=True)
-        for dirpath, dirnames, filenames in os.walk(ROOT):
-            dirnames[:] = [d for d in dirnames if d not in SKIP]
-            for fn in filenames:
-                src = Path(dirpath) / fn
-                rel = src.relative_to(ROOT)
-                dst = work / rel
-                if fn in SKIP or (str(rel) == "assignments.json" and dst.exists()):
-                    continue  # keep the org's existing assignments
-                dst.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(src, dst)
+        # Only git-tracked files are published, so stray local files (keys, notes) never leak.
+        listing = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z"], capture_output=True, text=True)
+        if listing.returncode != 0:
+            die("run deploy.py from a git checkout of this project (git init && git add -A && git commit)")
+        for rel in filter(None, listing.stdout.split("\0")):
+            src, dst = ROOT / rel, work / rel
+            if not src.is_file() or (rel == "assignments.json" and dst.exists()):
+                continue  # deleted locally, or keep the org's existing assignments
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
         subprocess.run(["git", "add", "-A"], cwd=work, check=True)
         if subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=work).returncode == 0:
             print("Repo files already up to date.")
@@ -82,7 +80,7 @@ def main():
     if args.app_id and args.private_key:
         for name, value in [("MASTER_KEY", cfg["master_key"]), ("APP_ID", args.app_id),
                             ("APP_PRIVATE_KEY", Path(args.private_key).read_text())]:
-            gh("secret", "set", name, "--repo", f"{org}/{repo}", "--body", value)
+            gh("secret", "set", name, "--repo", f"{org}/{repo}", input=value)  # stdin: not visible in `ps`
             print(f"Set Actions secret {name}.")
     else:
         print(f"""
