@@ -41,7 +41,7 @@ async function hmac(key, message) {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
 }
 
-if (assignment) document.getElementById('title').textContent += ' for ' + assignment;
+document.getElementById('title').textContent += ' for ' + assignment;
 
 document.getElementById('form').addEventListener('submit', async (event) => {
   event.preventDefault();
