@@ -1,26 +1,37 @@
-"""Shared helpers for deploy.py, new_assignment.py and clone.py (standard library only)."""
-import base64
-import getpass
+"""Shared helpers for deploy.py, new_assignment.py and clone.py. Uses the `gh` CLI for all GitHub access."""
 import hashlib
 import hmac
 import json
 import os
 import re
+import subprocess
 import sys
-import urllib.error
-import urllib.request
 from pathlib import Path
 
-API = "https://api.github.com"
 CONFIG_DIR = Path.home() / ".classroom"
 NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,60}$")
+# Lets plain git use gh's login for push/ls-remote without touching global git config.
+GIT_GH_AUTH = ["-c", "credential.helper=", "-c", "credential.helper=!gh auth git-credential"]
 
 
 def die(msg):
     sys.exit(f"error: {msg}")
 
 
-# ---- per-org config (~/.classroom/<org>.json) -------------------------------
+def gh_try(*args, input=None):
+    """Run gh; returns (ok, stdout, stderr)."""
+    r = subprocess.run(["gh", *args], input=input, capture_output=True, text=True)
+    return r.returncode == 0, r.stdout, r.stderr.strip()
+
+
+def gh(*args, input=None):
+    ok, out, err = gh_try(*args, input=input)
+    if not ok:
+        die(f"gh {' '.join(args[:2])} failed: {err}")
+    return out
+
+
+# ---- per-org config (~/.classroom/<org>.json: master_key, repo) -------------
 
 def config_path(org):
     return CONFIG_DIR / f"{org}.json"
@@ -48,58 +59,7 @@ def resolve_org(arg):
     die("specify the org with --org or CLASSROOM_ORG" + (f" (known: {', '.join(known)})" if known else ""))
 
 
-def get_token(org, cfg, kind):
-    """kind='admin' (write access, used by deploy/new_assignment) or 'read' (clone)."""
-    keys = ("admin_token", "token") if kind == "admin" else ("token", "admin_token")
-    token = os.environ.get("GITHUB_TOKEN") or next((cfg[k] for k in keys if cfg.get(k)), None)
-    if token:
-        return token
-    if not sys.stdin.isatty():
-        die(f"no token for {org}: set GITHUB_TOKEN or run interactively")
-    label = "admin_token" if kind == "admin" else "token"
-    token = getpass.getpass(f"Fine-grained PAT for {org} ({kind}): ").strip()
-    cfg[label] = token
-    save_config(org, cfg)
-    return token
-
-
-# ---- GitHub REST ------------------------------------------------------------
-
-def api(method, path, token, data=None):
-    """Returns (status, parsed_json_or_None). Never raises on HTTP errors."""
-    url = path if path.startswith("http") else API + path
-    req = urllib.request.Request(
-        url, method=method, data=None if data is None else json.dumps(data).encode()
-    )
-    req.add_header("Authorization", f"Bearer {token}")
-    req.add_header("Accept", "application/vnd.github+json")
-    req.add_header("X-GitHub-Api-Version", "2022-11-28")
-    req.add_header("User-Agent", "gh-classroom-scripts")
-    try:
-        with urllib.request.urlopen(req) as r:
-            body, status = r.read(), r.status
-    except urllib.error.HTTPError as e:
-        body, status = e.read(), e.code
-    try:
-        return status, (json.loads(body) if body else None)
-    except ValueError:
-        return status, None
-
-
-def paginate(path, token):
-    page, out = 1, []
-    sep = "&" if "?" in path else "?"
-    while True:
-        status, items = api("GET", f"{path}{sep}per_page=100&page={page}", token)
-        if status != 200:
-            die(f"GET {path} failed ({status}): {items}")
-        out.extend(items)
-        if len(items) < 100:
-            return out
-        page += 1
-
-
-# ---- assignment secrets (must match signup/index.html and the workflow) ------
+# ---- assignment secrets (must match index.html and the workflow) -------------
 
 def derive_secret(master_key, assignment, nonce):
     msg = f"{assignment}:{nonce}".encode()
@@ -108,11 +68,3 @@ def derive_secret(master_key, assignment, nonce):
 
 def make_link(org, repo, assignment, secret):
     return f"https://{org.lower()}.github.io/{repo}/#{assignment}.{secret}"
-
-
-# ---- git --------------------------------------------------------------------
-
-def git_auth_args(token):
-    """Pass the token per command so it is never written to a remote URL or git config."""
-    basic = base64.b64encode(f"x-access-token:{token}".encode()).decode()
-    return ["-c", f"http.extraheader=AUTHORIZATION: basic {basic}"]
