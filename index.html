@@ -31,13 +31,10 @@
 // Link: https://<org>.github.io/<repo>/#<assignment>.<secret>
 const org = location.hostname.split('.')[0];
 const repo = location.pathname.split('/')[1] || org + '.github.io';  // a repo named <org>.github.io has no path
-
-// Read when needed, so it always matches the address bar.
-function readLink() {
-  const link = location.hash.slice(1);
-  const dot = link.lastIndexOf('.');
-  return { assignment: link.slice(0, dot), secret: link.slice(dot + 1) };
-}
+const link = location.hash.slice(1);
+const dot = link.lastIndexOf('.');
+const assignment = link.slice(0, dot);
+const secret = link.slice(dot + 1);
 
 // Hex of the first 128 bits of HMAC-SHA256(key, message).
 async function hmac(key, message) {
@@ -47,13 +44,10 @@ async function hmac(key, message) {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
 }
 
-// Show which assignment the link is for.
-const linked = readLink().assignment;
-if (linked) document.getElementById('title').textContent += ' for ' + linked;
+if (assignment) document.getElementById('title').textContent += ' for ' + assignment;
 
 document.getElementById('form').addEventListener('submit', async (event) => {
   event.preventDefault();
-  const { assignment, secret } = readLink();
   if (!secret) {
     const error = document.getElementById('error');
     error.textContent = 'This link is incomplete. Please use the full link from your instructor.';
