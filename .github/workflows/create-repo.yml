@@ -38,10 +38,9 @@ jobs:
             const owner = context.repo.owner;
             const login = context.payload.issue.user.login;
             const body = context.payload.issue.body || '';
-            const field = (label) => {
-              const m = body.match(new RegExp('###\\s+' + label + '\\s+([A-Za-z0-9_-]+)'));
-              return m ? m[1] : '';
-            };
+            const m = body.match(/###\s+Code\s+([A-Za-z0-9_-]+)\.([0-9a-f]{32})/);
+            const assignment = m ? m[1] : '';
+            const proof = m ? m[2] : '';
             const hmac = (key, msg) =>
               crypto.createHmac('sha256', key).update(msg).digest('hex').slice(0, 32);
             const refuse = (why) => {
@@ -49,8 +48,6 @@ jobs:
               core.setOutput('message', 'This link is invalid or closed. Please ask your instructor for a current link.');
             };
 
-            const assignment = field('Assignment');
-            const proof = field('Proof');
             const assignments = JSON.parse(fs.readFileSync('assignments.json', 'utf8'));
             const cfg = Object.prototype.hasOwnProperty.call(assignments, assignment)
               ? assignments[assignment] : null;

@@ -65,7 +65,7 @@
     if (!/^[A-Za-z0-9-]{1,39}$/.test(user)) { fail('That does not look like a GitHub username.'); return; }
     var proof = await hmac(secret, assignment + ':' + user.toLowerCase());
     location.href = 'https://github.com/' + org + '/' + repo + '/issues/new?template=signup.yml' +
-      '&assignment=' + encodeURIComponent(assignment) + '&proof=' + proof;
+      '&code=' + assignment + '.' + proof;
   });
 })();
 </script>
