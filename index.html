@@ -16,7 +16,7 @@
 </style>
 </head>
 <body>
-<h1 id="title">Create your repository</h1>
+<h1>Create your repository</h1>
 <form id="form">
   <label for="user">Your GitHub username</label>
   <input id="user" required pattern="\s*[A-Za-z0-9\-]{1,39}\s*" autocomplete="off" autocapitalize="off" spellcheck="false">
@@ -37,8 +37,6 @@ async function hmac(key, message) {
   const bytes = new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(message)));
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
 }
-
-document.getElementById('title').textContent += ' for ' + assignment;
 
 document.getElementById('form').addEventListener('submit', async (event) => {
   event.preventDefault();
