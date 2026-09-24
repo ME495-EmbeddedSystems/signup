@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
 <title>Create your assignment repository</title>
 <style>
@@ -12,70 +11,64 @@
   input { width: 100%; box-sizing: border-box; margin: .4rem 0 1rem; }
   button { cursor: pointer; }
   .err { color: #b00020; }
-  code { background: #eee; padding: 0 .25rem; }
   @media (prefers-color-scheme: dark) {
     body { background: #111; color: #eee; }
-    code { background: #333; }
     .err { color: #ff6b81; }
   }
 </style>
 </head>
 <body>
 <h1 id="title">Create your repository</h1>
-<form id="form" hidden>
+<form id="form">
   <label for="user">Your GitHub username</label>
-  <input id="user" autocomplete="off" autocapitalize="off" spellcheck="false" required maxlength="39">
-  <button type="submit">Continue</button>
+  <input id="user" required pattern="\s*[A-Za-z0-9\-]{1,39}\s*" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <button>Continue</button>
   <p>You'll be taken to GitHub with the form filled in. Click <b>Submit new issue</b> and your private repository will be created within a minute.</p>
 </form>
 <p id="error" class="err" hidden></p>
 
 <script>
-(function () {
-  // The secret is read once at load; if the fragment is edited afterwards, reload so the page
-  // always acts on exactly what the address bar shows.
-  window.addEventListener('hashchange', function () { location.reload(); });
+// Link: https://<org>.github.io/<repo>/#<assignment>.<secret>
+const org = location.hostname.split('.')[0];
+const repo = location.pathname.split('/')[1] || org + '.github.io';  // a repo named <org>.github.io has no path
 
-  // The page lives at https://<org>.github.io/<repo>/#<assignment>.<secret>
-  var org = location.hostname.split('.')[0];
-  // A repo named <org>.github.io is served at the site root, so there is no path segment.
-  var repo = location.pathname.split('/').filter(Boolean)[0] || (location.hostname.split('.')[0] + '.github.io');
-  var hash = location.hash.slice(1);
-  var dot = hash.lastIndexOf('.');
-  var assignment = hash.slice(0, dot);
-  var secret = hash.slice(dot + 1);
+// Read when needed, so it always matches the address bar.
+function readLink() {
+  const link = location.hash.slice(1);
+  const dot = link.lastIndexOf('.');
+  return { assignment: link.slice(0, dot), secret: link.slice(dot + 1) };
+}
 
-  var form = document.getElementById('form');
-  var error = document.getElementById('error');
-  function fail(msg) { error.textContent = msg; error.hidden = false; }
+// Hex of the first 128 bits of HMAC-SHA256(key, message).
+async function hmac(key, message) {
+  const enc = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey('raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const bytes = new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(message)));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+}
 
-  document.getElementById('title').textContent = 'Create your repository for ' + assignment;
-  form.hidden = false;
+function showAssignment() {
+  const { assignment } = readLink();
+  document.getElementById('title').textContent = 'Create your repository' + (assignment ? ' for ' + assignment : '');
+}
+showAssignment();
+window.addEventListener('hashchange', showAssignment);
 
-  async function hmac(key, msg) {
-    var enc = new TextEncoder();
-    var k = await crypto.subtle.importKey('raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-    var sig = new Uint8Array(await crypto.subtle.sign('HMAC', k, enc.encode(msg)));
-    return Array.from(sig, function (b) { return b.toString(16).padStart(2, '0'); }).join('').slice(0, 32);
+document.getElementById('form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const { assignment, secret } = readLink();
+  if (!secret) {
+    const error = document.getElementById('error');
+    error.textContent = 'This link is incomplete. Please use the full link from your instructor.';
+    error.hidden = false;
+    return;
   }
-
-  form.addEventListener('submit', async function (e) {
-    e.preventDefault();
-    error.hidden = true;
-    var user = document.getElementById('user').value.trim().replace(/^@/, '');
-    if (!/^[A-Za-z0-9-]{1,39}$/.test(user)) { fail('That does not look like a GitHub username.'); return; }
-    var proof;
-    try {
-      proof = await hmac(secret, assignment + ':' + user.toLowerCase());
-    } catch (err) {  // e.g. a link with no secret at all
-      fail('This link is incomplete. Please use the full link from your instructor.');
-      return;
-    }
-    // Anything wrong with the link just yields a proof the workflow refuses.
-    location.href = 'https://github.com/' + org + '/' + repo + '/issues/new?template=signup.yml' +
-      '&code=' + encodeURIComponent(assignment + '.' + proof);
-  });
-})();
+  const username = document.getElementById('user').value.trim().toLowerCase();
+  const proof = await hmac(secret, assignment + ':' + username);
+  // A wrong link just produces a proof that the workflow refuses.
+  location.href = `https://github.com/${org}/${repo}/issues/new?template=signup.yml` +
+    `&code=${encodeURIComponent(assignment + '.' + proof)}`;
+});
 </script>
 </body>
 </html>
