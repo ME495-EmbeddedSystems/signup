@@ -24,7 +24,6 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           permission-administration: write
-          permission-contents: read
           permission-metadata: read
 
       - id: make
@@ -86,14 +85,7 @@ jobs:
               const count = repos.filter((r) => r.name.startsWith(cfg.prefix + '-')).length;
               if (count >= cfg.max_repos) return refuse('max_repos reached');
 
-              if (cfg.template) {
-                const parts = cfg.template.includes('/') ? cfg.template.split('/') : [owner, cfg.template];
-                await github.rest.repos.createUsingTemplate({
-                  template_owner: parts[0], template_repo: parts[1], owner, name, private: true,
-                });
-              } else {
-                await github.rest.repos.createInOrg({ org: owner, name, private: true });
-              }
+              await github.rest.repos.createInOrg({ org: owner, name, private: true });
 
               await github.rest.repos.addCollaborator({
                 owner, repo: name, username: login, permission: 'push',

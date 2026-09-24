@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Create or manage an assignment and print its shareable link.
 
-    python tools/new_assignment.py F26_HW1 --org myorg [--template tpl-repo] [--max-repos 200]
+    python tools/new_assignment.py F26_HW1 --org myorg [--max-repos 200]
     python tools/new_assignment.py F26_HW1 --org myorg --close | --reopen | --rotate
 """
 import argparse
@@ -16,7 +16,6 @@ def main():
     ap.add_argument("name", help="assignment name, e.g. F26_HW1")
     ap.add_argument("--org")
     ap.add_argument("--prefix", help="repo name prefix (default: the assignment name)")
-    ap.add_argument("--template", help="template repo copied for each student (repo or owner/repo)")
     ap.add_argument("--max-repos", type=int)
     ap.add_argument("--close", action="store_true", help="stop accepting new students")
     ap.add_argument("--reopen", action="store_true")
@@ -39,14 +38,12 @@ def main():
     if entry is None:
         if args.close or args.reopen or args.rotate:
             die(f"no assignment named {args.name}")
-        entry = {"prefix": args.name, "nonce": "1", "template": None, "open": True, "max_repos": 200}
+        entry = {"prefix": args.name, "nonce": "1", "open": True, "max_repos": 200}
         verb = "Created"
     else:
         verb = "Updated"
     if args.prefix:
         entry["prefix"] = args.prefix
-    if args.template:
-        entry["template"] = args.template
     if args.max_repos:
         entry["max_repos"] = args.max_repos
     if args.close:

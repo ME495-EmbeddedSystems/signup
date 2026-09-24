@@ -13,7 +13,7 @@ Requires Python 3, `git`, and the [`gh` CLI](https://cli.github.com) logged in (
    - **Homepage URL**: `https://myorg.github.io/signup/` (required, not used; match your repo name)
    - **Callback URL**, **Setup URL**: blank. Leave "Request user authorization", "Enable Device Flow" and "Expire user authorization tokens" unchecked.
    - **Webhook**: uncheck "Active"
-   - **Repository permissions**: Administration: Read and write; Contents: Read-only; Metadata: Read-only. No other permissions.
+   - **Repository permissions**: Administration: Read and write; Metadata: Read-only. No other permissions.
    - **Subscribe to events**: none
    - **Where can this GitHub App be installed?**: Only on this account
    
@@ -49,7 +49,6 @@ To limit `gh` to one org, set `GH_TOKEN` to a fine-grained PAT owned by that org
 
 ```
 python tools/new_assignment.py F26_HW1 --org myorg            # prints the student link
-python tools/new_assignment.py F26_HW1 --org myorg --template hw1-starter
 python tools/new_assignment.py F26_HW1 --org myorg --close    # stop new sign-ups
 python tools/new_assignment.py F26_HW1 --org myorg --rotate   # new link; old one stops working
 python tools/clone.py F26_HW1 --org myorg [dest]              # clone or pull all student repos
