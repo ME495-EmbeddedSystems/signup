@@ -6,6 +6,7 @@
 Repos are the org's repos named "<prefix>-<username>".
 """
 import argparse
+import re
 import subprocess
 from pathlib import Path
 
@@ -26,7 +27,7 @@ def main():
     dest.mkdir(parents=True, exist_ok=True)
 
     listing = gh("repo", "list", org, "--limit", "1000", "--json", "name", "--jq", ".[].name")
-    names = sorted(n for n in listing.split() if n.startswith(args.prefix + "-") and NAME_RE.match(n))
+    names = sorted(n for n in listing.split() if n.startswith(args.prefix + "-") and re.fullmatch(r"[A-Za-z0-9_-]{1,100}", n))
     if not names:
         die(f"no repos in {org} start with '{args.prefix}-'")
 
