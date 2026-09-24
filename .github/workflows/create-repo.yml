@@ -57,12 +57,15 @@ jobs:
               ? assignments[assignment] : null;
             if (!cfg || !cfg.open) return refuse('unknown or closed assignment');
 
-            const secret = hmac((process.env.MASTER_KEY || '').trim(), assignment + ':' + cfg.nonce);
+            const masterKey = (process.env.MASTER_KEY || '').trim();
+            core.info(`assignment=${assignment} nonce=${cfg.nonce} login=${login} master_key_length=${masterKey.length}`);
+            const secret = hmac(masterKey, assignment + ':' + cfg.nonce);
             const expected = Buffer.from(hmac(secret, assignment + ':' + login.toLowerCase()));
             const given = Buffer.from(proof);
             if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) {
               return refuse('proof does not match');
             }
+            core.info('proof verified');
 
             try {
               const name = cfg.prefix + '-' + login;
