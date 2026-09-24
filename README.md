@@ -17,25 +17,26 @@ Requires Python 3, `git`, and the [`gh` CLI](https://cli.github.com) logged in (
    - **Subscribe to events**: none
    - **Where can this GitHub App be installed?**: Only on this account
    
-   Click **Create GitHub App**. On the next page, note the **App ID** and click **Generate a private key** (saves a `.pem`; rename it `app.pem`). Then **Install App** (left sidebar) > install on `myorg` > **All repositories**.
+   Click **Create GitHub App**. On the next page, note the **App ID** and click **Generate a private key** (saves a `.pem`; keep it outside this directory, e.g. `~/Downloads/app.pem`). Then **Install App** (left sidebar) > install on `myorg` > **All repositories**.
 2. From this directory:
    ```
-   ORG=myorg; REPO=signup; APP_ID=12345
+   ORG=myorg; REPO=signup; APP_ID=12345; PEM=~/Downloads/app.pem
 
    gh repo create $ORG/$REPO --public --source . --remote $ORG --push
    gh api -X POST repos/$ORG/$REPO/pages -f 'source[branch]=main' -f 'source[path]=/'
 
    KEY=$(openssl rand -hex 32)
-   gh secret set MASTER_KEY --repo $ORG/$REPO --body $KEY
-   gh secret set APP_ID --repo $ORG/$REPO --body $APP_ID
-   gh secret set APP_PRIVATE_KEY --repo $ORG/$REPO < app.pem
+   printf %s "$KEY"    | gh secret set MASTER_KEY      --repo $ORG/$REPO
+   printf %s "$APP_ID" | gh secret set APP_ID          --repo $ORG/$REPO
+   gh secret set APP_PRIVATE_KEY --repo $ORG/$REPO < $PEM
 
    mkdir -p ~/.classroom && printf '{"master_key":"%s","repo":"%s"}\n' $KEY $REPO > ~/.classroom/$ORG.json
    chmod 600 ~/.classroom/$ORG.json
+   shred -u $PEM    # the key now lives only in the Actions secret
    ```
    Any repo name works.
 
-`python tools/deploy.py myorg --app-id 12345 --private-key app.pem` does all of step 2, and also updates an existing deployment.
+`python tools/deploy.py myorg --app-id 12345 --private-key ~/Downloads/app.pem` does all of step 2, and also updates an existing deployment. It publishes git-tracked files only, so `git add` new files first.
 
 To limit `gh` to one org, set `GH_TOKEN` to a fine-grained PAT owned by that org (Administration, Contents, Pages, Secrets: read & write) instead of using `gh auth login`.
 
@@ -50,6 +51,13 @@ python tools/clone.py F26_HW1 --org myorg [dest]              # clone or pull al
 ```
 
 `--org` may be omitted if only one org is configured, or set via `CLASSROOM_ORG`.
+
+## Harden the org
+
+- Anyone with **write access to the signup repo** can read its Actions secrets, including the App key, which can administer every repo in the org. Keep write access to yourself and protect `main`.
+- Do not create org-level Actions secrets visible to all repos: students can run workflows in their own repos.
+- Restrict Actions (Org settings > Actions) to the signup repo, and leave "Allow forking of private repositories" off.
+- Set base permissions to "No permission".
 
 ## Notes
 

@@ -9,7 +9,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-from classroom_lib import GIT_GH_AUTH, die, gh, resolve_org
+from classroom_lib import GIT_GH_AUTH, NAME_RE, die, gh, resolve_org
 
 
 def main():
@@ -19,12 +19,14 @@ def main():
     ap.add_argument("--org")
     args = ap.parse_intermixed_args()
 
+    if not NAME_RE.match(args.prefix):
+        die("prefix may only contain letters, digits, '_' and '-'")
     org = resolve_org(args.org)
     dest = Path(args.dest or args.prefix)
     dest.mkdir(parents=True, exist_ok=True)
 
     listing = gh("repo", "list", org, "--limit", "1000", "--json", "name", "--jq", ".[].name")
-    names = sorted(n for n in listing.split() if n.startswith(args.prefix + "-"))
+    names = sorted(n for n in listing.split() if n.startswith(args.prefix + "-") and NAME_RE.match(n))
     if not names:
         die(f"no repos in {org} start with '{args.prefix}-'")
 
