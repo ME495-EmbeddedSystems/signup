@@ -36,7 +36,12 @@ Requires Python 3, `git`, and the [`gh` CLI](https://cli.github.com) logged in (
    ```
    Any repo name works.
 
-`python tools/deploy.py myorg --app-id 12345 --private-key ~/Downloads/app.pem` does all of step 2, and also updates an existing deployment. It publishes git-tracked files only, so `git add` new files first.
+`python tools/deploy.py myorg --app-id 12345 --private-key ~/Downloads/app.pem` does all of step 2.
+
+To update an existing deployment, just push. `new_assignment.py` commits `assignments.json` to the org repo, so pull first:
+```
+git pull --rebase $ORG main && git push $ORG main
+```
 
 To limit `gh` to one org, set `GH_TOKEN` to a fine-grained PAT owned by that org (Administration, Contents, Pages, Secrets: read & write) instead of using `gh auth login`.
 
