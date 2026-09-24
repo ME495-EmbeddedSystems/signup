@@ -32,6 +32,10 @@
 
 <script>
 (function () {
+  // The secret is read once at load; if the fragment is edited afterwards, reload so the page
+  // always acts on exactly what the address bar shows.
+  window.addEventListener('hashchange', function () { location.reload(); });
+
   // The page lives at https://<org>.github.io/<repo>/#<assignment>.<secret>
   var org = location.hostname.split('.')[0];
   // A repo named <org>.github.io is served at the site root, so there is no path segment.
