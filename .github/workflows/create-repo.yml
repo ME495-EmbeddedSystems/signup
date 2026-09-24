@@ -26,6 +26,8 @@ jobs:
           permission-administration: write
           permission-metadata: read
 
+      # Verifies the request and creates the repo. Sets the `message` output to the reply for the
+      # student; if this step throws, the last step posts a generic failure message instead.
       - id: make
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         env:
@@ -37,67 +39,55 @@ jobs:
             const fs = require('fs');
 
             const owner = context.repo.owner;
-            const login = context.payload.issue.user.login;
-            const body = context.payload.issue.body || '';
-            // The body must be exactly what the issue form produces, nothing more.
-            const m = body.trim().match(/^###\s+Code\s+([A-Za-z0-9_-]+)\.([0-9a-f]{32})$/);
-            const assignment = m ? m[1] : '';
-            const proof = m ? m[2] : '';
-            const hmac = (key, msg) =>
-              crypto.createHmac('sha256', key).update(msg).digest('hex').slice(0, 32);
-            const refuse = (why, message) => {
+            const login = context.payload.issue.user.login;  // set by GitHub, cannot be forged
+            const hmac = (key, message) =>
+              crypto.createHmac('sha256', key).update(message).digest('hex').slice(0, 32);
+            const refuse = (why, message = 'This link is invalid or closed. Please ask your instructor for a current link.') => {
               core.info('Refused: ' + why);
-              core.setOutput('message', message ||
-                'This link is invalid or closed. Please ask your instructor for a current link.');
+              core.setOutput('message', message);
             };
 
-            const assignments = JSON.parse(fs.readFileSync('assignments.json', 'utf8'));
-            const cfg = Object.prototype.hasOwnProperty.call(assignments, assignment)
-              ? assignments[assignment] : null;
-            if (!cfg || !cfg.open) return refuse('unknown or closed assignment');
+            // The body must be exactly what the issue form produces: "### Code", then "<assignment>.<proof>".
+            const match = (context.payload.issue.body || '').trim().match(/^###\s+Code\s+([A-Za-z0-9_-]+)\.([0-9a-f]{32})$/);
+            const [, assignment, proof] = match || [];
 
-            const masterKey = (process.env.MASTER_KEY || '').trim();
-            core.info(`assignment=${assignment} nonce=${cfg.nonce} login=${login} master_key_length=${masterKey.length}`);
-            const secret = hmac(masterKey, assignment + ':' + cfg.nonce);
-            const expected = Buffer.from(hmac(secret, assignment + ':' + login.toLowerCase()));
-            const given = Buffer.from(proof);
-            if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) {
+            const assignments = JSON.parse(fs.readFileSync('assignments.json', 'utf8'));
+            if (!Object.hasOwn(assignments, assignment) || !assignments[assignment].open) {
+              return refuse('unknown or closed assignment');
+            }
+            const { prefix, nonce, max_repos } = assignments[assignment];
+
+            // The link secret is derived from the master key; the proof binds it to this login.
+            const secret = hmac(process.env.MASTER_KEY.trim(), `${assignment}:${nonce}`);
+            const expected = hmac(secret, `${assignment}:${login.toLowerCase()}`);
+            if (!crypto.timingSafeEqual(Buffer.from(proof), Buffer.from(expected))) {
               return refuse('proof does not match');
             }
-            core.info('proof verified');
 
-            try {
-              const name = cfg.prefix + '-' + login;
-              const url = `https://github.com/${owner}/${name}`;
+            const name = `${prefix}-${login}`;
+            const url = `https://github.com/${owner}/${name}`;
 
-              // Never reuse an existing repo: that could hand someone else's repo (or a repo like
-              // <prefix>-solutions) to whoever registers a matching username.
-              try {
-                await github.rest.repos.get({ owner, repo: name });
-                return refuse('repo already exists',
-                  `A repository named \`${name}\` already exists. If it is yours, open your invitations: ${url}/invitations\n\n` +
-                  'Otherwise, please contact your instructor.');
-              } catch (e) {
-                if (e.status !== 404) throw e;
-              }
-
-              const repos = await github.paginate(github.rest.repos.listForOrg, { org: owner, per_page: 100 });
-              const count = repos.filter((r) => r.name.startsWith(cfg.prefix + '-')).length;
-              if (count >= cfg.max_repos) return refuse('max_repos reached');
-
-              await github.rest.repos.createInOrg({ org: owner, name, private: true });
-
-              await github.rest.repos.addCollaborator({
-                owner, repo: name, username: login, permission: 'push',
-              });
-
-              core.setOutput('message',
-                `@${login} your repository is ready: ${url}\n\n` +
-                `Accept the invitation here (if you have not already): ${url}/invitations`);
-            } catch (e) {
-              core.setOutput('message', 'Something went wrong creating your repository. Please open your assignment link again in a minute; if it keeps failing, contact your instructor.');
-              core.setFailed(e.message);
+            // Never reuse an existing repo: that could hand someone else's repo (or a repo like
+            // <prefix>-solutions) to whoever registers a matching username.
+            const exists = await github.rest.repos.get({ owner, repo: name })
+              .then(() => true, (e) => { if (e.status === 404) return false; throw e; });
+            if (exists) {
+              return refuse('repo already exists',
+                `A repository named \`${name}\` already exists. If it is yours, open your invitations: ${url}/invitations\n\n` +
+                'Otherwise, please contact your instructor.');
             }
+
+            const repos = await github.paginate(github.rest.repos.listForOrg, { org: owner, per_page: 100 });
+            if (repos.filter((r) => r.name.startsWith(prefix + '-')).length >= max_repos) {
+              return refuse('max_repos reached');
+            }
+
+            await github.rest.repos.createInOrg({ org: owner, name, private: true });
+            await github.rest.repos.addCollaborator({ owner, repo: name, username: login, permission: 'push' });
+
+            core.setOutput('message',
+              `@${login} your repository is ready: ${url}\n\n` +
+              `Accept the invitation here (if you have not already): ${url}/invitations`);
 
       - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         if: always()

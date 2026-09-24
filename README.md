@@ -35,6 +35,7 @@ Requires Python 3, `git`, and the [`gh` CLI](https://cli.github.com) logged in (
    shred -u $PEM    # the key now lives only in the Actions secret
    ```
    Any repo name works, except `$ORG.github.io`.
+   If enabling Pages fails with "Pages creation disabled", allow it under Org settings > Member privileges > Pages creation (Public), then re-run that command.
 
 `python tools/deploy.py myorg --app-id 12345 --private-key ~/Downloads/app.pem` does all of step 2.
 
@@ -67,4 +68,5 @@ python tools/clone.py F26_HW1 --org myorg [dest]              # clone or pull al
 
 - Anyone with the link can join. `--close` or `--rotate` if it leaks. `max_repos` in `assignments.json` (default 200) caps repos.
 - Students accept a collaborator invite; the workflow comment links to it.
+- A student's repo is never reused. To redo one, delete the repo and have them open the link again.
 - The repo is public so students can open issues.
