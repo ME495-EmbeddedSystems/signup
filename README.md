@@ -8,7 +8,16 @@ Requires Python 3, `git`, and the [`gh` CLI](https://cli.github.com) logged in (
 
 ## Set up an org
 
-1. Create a GitHub App owned by the org: webhook off, repository permissions Administration (R/W), Contents (R/W), Metadata (R), "Only on this account". Generate a private key (`app.pem`). Install it on the org, all repositories. Note the App ID.
+1. Create a GitHub App at `https://github.com/organizations/myorg/settings/apps/new` (org Settings > Developer settings > GitHub Apps > New GitHub App):
+   - **Name**: any globally unique name, e.g. `myorg-classroom`
+   - **Homepage URL**: `https://github.com/myorg/signup` (required, not used)
+   - **Callback URL**, **Setup URL**: blank. Leave "Request user authorization", "Enable Device Flow" and "Expire user authorization tokens" unchecked.
+   - **Webhook**: uncheck "Active"
+   - **Repository permissions**: Administration: Read and write; Contents: Read-only; Metadata: Read-only. No other permissions.
+   - **Subscribe to events**: none
+   - **Where can this GitHub App be installed?**: Only on this account
+   
+   Click **Create GitHub App**. On the next page, note the **App ID** and click **Generate a private key** (saves a `.pem`; rename it `app.pem`). Then **Install App** (left sidebar) > install on `myorg` > **All repositories**.
 2. From this directory:
    ```
    ORG=myorg; REPO=signup; APP_ID=12345
