@@ -38,14 +38,16 @@ jobs:
             const owner = context.repo.owner;
             const login = context.payload.issue.user.login;
             const body = context.payload.issue.body || '';
-            const m = body.match(/###\s+Code\s+([A-Za-z0-9_-]+)\.([0-9a-f]{32})/);
+            // The body must be exactly what the issue form produces, nothing more.
+            const m = body.trim().match(/^###\s+Code\s+([A-Za-z0-9_-]+)\.([0-9a-f]{32})$/);
             const assignment = m ? m[1] : '';
             const proof = m ? m[2] : '';
             const hmac = (key, msg) =>
               crypto.createHmac('sha256', key).update(msg).digest('hex').slice(0, 32);
-            const refuse = (why) => {
+            const refuse = (why, message) => {
               core.info('Refused: ' + why);
-              core.setOutput('message', 'This link is invalid or closed. Please ask your instructor for a current link.');
+              core.setOutput('message', message ||
+                'This link is invalid or closed. Please ask your instructor for a current link.');
             };
 
             const assignments = JSON.parse(fs.readFileSync('assignments.json', 'utf8'));
@@ -64,9 +66,17 @@ jobs:
               const name = cfg.prefix + '-' + login;
               const url = `https://github.com/${owner}/${name}`;
 
+              // Each repo is tagged with its owner's immutable numeric account id, so a login that
+              // was renamed or deleted and re-registered cannot claim an earlier student's repo.
+              const tag = 'student-id:' + context.payload.issue.user.id;
+
               let exists = true;
               try {
-                await github.rest.repos.get({ owner, repo: name });
+                const { data } = await github.rest.repos.get({ owner, repo: name });
+                if (data.description !== tag) {
+                  return refuse('repo exists for a different account',
+                    'A repository with this name already exists and belongs to a different account. Please contact your instructor.');
+                }
               } catch (e) {
                 if (e.status !== 404) throw e;
                 exists = false;
@@ -81,10 +91,10 @@ jobs:
                   const parts = cfg.template.includes('/') ? cfg.template.split('/') : [owner, cfg.template];
                   await github.rest.repos.createUsingTemplate({
                     template_owner: parts[0], template_repo: parts[1],
-                    owner, name, private: true,
+                    owner, name, private: true, description: tag,
                   });
                 } else {
-                  await github.rest.repos.createInOrg({ org: owner, name, private: true });
+                  await github.rest.repos.createInOrg({ org: owner, name, private: true, description: tag });
                 }
               }
 
