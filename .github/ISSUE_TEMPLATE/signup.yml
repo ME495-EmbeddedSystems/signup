@@ -6,6 +6,6 @@ body:
     id: code
     attributes:
       label: Code
-      description: Filled in for you. Do not edit.
+      description: Filled in for you. Do not edit or share.
     validations:
       required: true
