@@ -47,12 +47,9 @@ async function hmac(key, message) {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
 }
 
-function showAssignment() {
-  const { assignment } = readLink();
-  document.getElementById('title').textContent = 'Create your repository' + (assignment ? ' for ' + assignment : '');
-}
-showAssignment();
-window.addEventListener('hashchange', showAssignment);
+// Show which assignment the link is for.
+const linked = readLink().assignment;
+if (linked) document.getElementById('title').textContent += ' for ' + linked;
 
 document.getElementById('form').addEventListener('submit', async (event) => {
   event.preventDefault();
