@@ -1,0 +1,115 @@
+name: Create student repository
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: create-repo
+  cancel-in-progress: false
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: app
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - id: make
+        uses: actions/github-script@v7
+        env:
+          MASTER_KEY: ${{ secrets.MASTER_KEY }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const crypto = require('crypto');
+            const fs = require('fs');
+
+            const owner = context.repo.owner;
+            const login = context.payload.issue.user.login;
+            const body = context.payload.issue.body || '';
+            const field = (label) => {
+              const m = body.match(new RegExp('###\\s+' + label + '\\s+([A-Za-z0-9_-]+)'));
+              return m ? m[1] : '';
+            };
+            const hmac = (key, msg) =>
+              crypto.createHmac('sha256', key).update(msg).digest('hex').slice(0, 32);
+            const refuse = (why) => {
+              core.info('Refused: ' + why);
+              core.setOutput('message', 'This link is invalid or closed. Please ask your instructor for a current link.');
+            };
+
+            const assignment = field('Assignment');
+            const proof = field('Proof');
+            const assignments = JSON.parse(fs.readFileSync('assignments.json', 'utf8'));
+            const cfg = Object.prototype.hasOwnProperty.call(assignments, assignment)
+              ? assignments[assignment] : null;
+            if (!cfg || !cfg.open) return refuse('unknown or closed assignment');
+
+            const secret = hmac((process.env.MASTER_KEY || '').trim(), assignment + ':' + cfg.nonce);
+            const expected = Buffer.from(hmac(secret, assignment + ':' + login.toLowerCase()));
+            const given = Buffer.from(proof);
+            if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) {
+              return refuse('proof does not match');
+            }
+
+            try {
+              const name = cfg.prefix + '-' + login;
+              const url = `https://github.com/${owner}/${name}`;
+
+              let exists = true;
+              try {
+                await github.rest.repos.get({ owner, repo: name });
+              } catch (e) {
+                if (e.status !== 404) throw e;
+                exists = false;
+              }
+
+              if (!exists) {
+                const repos = await github.paginate(github.rest.repos.listForOrg, { org: owner, per_page: 100 });
+                const count = repos.filter((r) => r.name.startsWith(cfg.prefix + '-')).length;
+                if (count >= cfg.max_repos) return refuse('max_repos reached');
+
+                if (cfg.template) {
+                  const parts = cfg.template.includes('/') ? cfg.template.split('/') : [owner, cfg.template];
+                  await github.rest.repos.createUsingTemplate({
+                    template_owner: parts[0], template_repo: parts[1],
+                    owner, name, private: true,
+                  });
+                } else {
+                  await github.rest.repos.createInOrg({ org: owner, name, private: true });
+                }
+              }
+
+              await github.rest.repos.addCollaborator({
+                owner, repo: name, username: login, permission: 'push',
+              });
+
+              core.setOutput('message',
+                `@${login} your repository is ready: ${url}\n\n` +
+                `Accept the invitation here (if you have not already): ${url}/invitations`);
+            } catch (e) {
+              core.setOutput('message', 'Something went wrong creating your repository. Please contact your instructor.');
+              core.setFailed(e.message);
+            }
+
+      - uses: actions/github-script@v7
+        if: always()
+        env:
+          MESSAGE: ${{ steps.make.outputs.message }}
+        with:
+          script: |
+            const body = process.env.MESSAGE ||
+              'Something went wrong creating your repository. Please contact your instructor.';
+            await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
+            await github.rest.issues.update({ ...context.repo, issue_number: context.issue.number, state: 'closed' });

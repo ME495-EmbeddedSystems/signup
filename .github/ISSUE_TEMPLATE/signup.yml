@@ -1,0 +1,16 @@
+name: Create assignment repository
+description: Opened for you by the assignment link. Do not edit the fields.
+title: "Repository request"
+body:
+  - type: input
+    id: assignment
+    attributes:
+      label: Assignment
+    validations:
+      required: true
+  - type: input
+    id: proof
+    attributes:
+      label: Proof
+    validations:
+      required: true

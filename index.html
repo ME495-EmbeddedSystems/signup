@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Create your assignment repository</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 30rem; margin: 3rem auto; padding: 0 1rem; }
+  input, button { font: inherit; padding: .5rem .7rem; }
+  input { width: 100%; box-sizing: border-box; margin: .4rem 0 1rem; }
+  button { cursor: pointer; }
+  .err { color: #b00020; }
+  code { background: #eee; padding: 0 .25rem; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #111; color: #eee; }
+    code { background: #333; }
+    .err { color: #ff6b81; }
+  }
+</style>
+</head>
+<body>
+<h1 id="title">Create your repository</h1>
+<form id="form" hidden>
+  <label for="user">Your GitHub username</label>
+  <input id="user" autocomplete="off" autocapitalize="off" spellcheck="false" required maxlength="39">
+  <button type="submit">Continue</button>
+  <p>You'll be taken to GitHub with the form filled in. Click <b>Submit new issue</b> and your private repository will be created within a minute.</p>
+</form>
+<p id="error" class="err" hidden></p>
+
+<script>
+(function () {
+  // The page lives at https://<org>.github.io/<repo>/#<assignment>.<secret>
+  var org = location.hostname.split('.')[0];
+  // A repo named <org>.github.io is served at the site root, so there is no path segment.
+  var repo = location.pathname.split('/').filter(Boolean)[0] || (location.hostname.split('.')[0] + '.github.io');
+  var hash = location.hash.slice(1);
+  var dot = hash.lastIndexOf('.');
+  var assignment = hash.slice(0, dot);
+  var secret = hash.slice(dot + 1);
+
+  var form = document.getElementById('form');
+  var error = document.getElementById('error');
+  function fail(msg) { error.textContent = msg; error.hidden = false; }
+
+  if (dot < 1 || !/^[A-Za-z0-9_-]+$/.test(assignment) || !/^[0-9a-f]{32}$/.test(secret)) {
+    fail('This link is incomplete. Please use the full link from your instructor.');
+    return;
+  }
+  document.getElementById('title').textContent = 'Create your repository for ' + assignment;
+  form.hidden = false;
+
+  async function hmac(key, msg) {
+    var enc = new TextEncoder();
+    var k = await crypto.subtle.importKey('raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    var sig = new Uint8Array(await crypto.subtle.sign('HMAC', k, enc.encode(msg)));
+    return Array.from(sig, function (b) { return b.toString(16).padStart(2, '0'); }).join('').slice(0, 32);
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    error.hidden = true;
+    var user = document.getElementById('user').value.trim().replace(/^@/, '');
+    if (!/^[A-Za-z0-9-]{1,39}$/.test(user)) { fail('That does not look like a GitHub username.'); return; }
+    var proof = await hmac(secret, assignment + ':' + user.toLowerCase());
+    location.href = 'https://github.com/' + org + '/' + repo + '/issues/new?template=signup.yml' +
+      '&assignment=' + encodeURIComponent(assignment) + '&proof=' + proof;
+  });
+})();
+</script>
+</body>
+</html>
