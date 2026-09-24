@@ -10,7 +10,7 @@ Requires Python 3, `git`, and the [`gh` CLI](https://cli.github.com) logged in (
 
 1. Create a GitHub App at `https://github.com/organizations/myorg/settings/apps/new` (org Settings > Developer settings > GitHub Apps > New GitHub App):
    - **Name**: any globally unique name, e.g. `myorg-classroom`
-   - **Homepage URL**: `https://github.com/myorg/signup` (required, not used)
+   - **Homepage URL**: `https://myorg.github.io/signup/` (required, not used; match your repo name)
    - **Callback URL**, **Setup URL**: blank. Leave "Request user authorization", "Enable Device Flow" and "Expire user authorization tokens" unchecked.
    - **Webhook**: uncheck "Active"
    - **Repository permissions**: Administration: Read and write; Contents: Read-only; Metadata: Read-only. No other permissions.
