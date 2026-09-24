@@ -10,10 +10,8 @@
   input, button { font: inherit; padding: .5rem .7rem; }
   input { width: 100%; box-sizing: border-box; margin: .4rem 0 1rem; }
   button { cursor: pointer; }
-  .err { color: #b00020; }
   @media (prefers-color-scheme: dark) {
     body { background: #111; color: #eee; }
-    .err { color: #ff6b81; }
   }
 </style>
 </head>
@@ -25,7 +23,6 @@
   <button>Continue</button>
   <p>You'll be taken to GitHub with the form filled in. Click <b>Submit new issue</b> and your private repository will be created within a minute.</p>
 </form>
-<p id="error" class="err" hidden></p>
 
 <script>
 // Link: https://<org>.github.io/<repo>/#<assignment>.<secret>
@@ -45,12 +42,6 @@ document.getElementById('title').textContent += ' for ' + assignment;
 
 document.getElementById('form').addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (!secret) {
-    const error = document.getElementById('error');
-    error.textContent = 'This link is incomplete. Please use the full link from your instructor.';
-    error.hidden = false;
-    return;
-  }
   const username = document.getElementById('user').value.trim().toLowerCase();
   const proof = await hmac(secret, assignment + ':' + username);
   // A wrong link just produces a proof that the workflow refuses.
