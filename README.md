@@ -34,7 +34,7 @@ Requires Python 3, `git`, and the [`gh` CLI](https://cli.github.com) logged in (
    chmod 600 ~/.classroom/$ORG.json
    shred -u $PEM    # the key now lives only in the Actions secret
    ```
-   Any repo name works.
+   Any repo name works, except `$ORG.github.io`.
 
 `python tools/deploy.py myorg --app-id 12345 --private-key ~/Downloads/app.pem` does all of step 2.
 

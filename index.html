@@ -30,11 +30,8 @@
 <script>
 // Link: https://<org>.github.io/<repo>/#<assignment>.<secret>
 const org = location.hostname.split('.')[0];
-const repo = location.pathname.split('/')[1] || org + '.github.io';  // a repo named <org>.github.io has no path
-const link = location.hash.slice(1);
-const dot = link.lastIndexOf('.');
-const assignment = link.slice(0, dot);
-const secret = link.slice(dot + 1);
+const repo = location.pathname.split('/')[1];
+const [assignment, secret] = location.hash.slice(1).split('.');
 
 // Hex of the first 128 bits of HMAC-SHA256(key, message).
 async function hmac(key, message) {
