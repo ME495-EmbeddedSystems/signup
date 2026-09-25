@@ -1,4 +1,4 @@
-# GitHub Classroom, minus the server
+# Serverless GitHub Classroom
 
 Students open a link, enter their GitHub username, and get a private repo `<assignment>-<username>` in your org. Runs on GitHub Pages and Actions through a GitHub App installed only on the orgs you choose.
 
