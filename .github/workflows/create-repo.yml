@@ -20,39 +20,37 @@ jobs:
           permission-administration: write
           permission-metadata: read
 
-      # Verifies the request and creates the repo. Sets the `message` output to the reply for the
-      # student; if this step throws, the last step posts a generic failure message instead.
+      # Verifies the request, creates the repo, and returns the reply for the student. If this step
+      # throws, its result is empty and the last step posts a generic failure message instead.
       - id: make
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         env:
           MASTER_KEY: ${{ secrets.MASTER_KEY }}
         with:
           github-token: ${{ steps.app.outputs.token }}
+          result-encoding: string
           script: |
             const crypto = require('crypto');
+            const hmac = (key, message) =>
+              crypto.createHmac('sha256', key).update(message).digest('hex').slice(0, 32);
 
             const owner = context.repo.owner;
             const login = context.payload.issue.user.login;  // set by GitHub, cannot be forged
-            const hmac = (key, message) =>
-              crypto.createHmac('sha256', key).update(message).digest('hex').slice(0, 32);
-            const refuse = (why, message = 'This link is invalid or has expired. Please ask your instructor for a current link.') => {
-              core.info('Refused: ' + why);
-              core.setOutput('message', message);
-            };
+            const invalid = 'This link is invalid. Please ask your instructor for a current link.';
 
             // The body must be exactly what the issue form produces: "### Code", then "<assignment>.<expiry>.<proof>".
             const match = (context.payload.issue.body || '').trim()
               .match(/^###\s+Code\s+([A-Za-z0-9_-]+)\.(\d{8})\.([0-9a-f]{32})$/);
-            if (!match) return refuse('malformed code');
+            if (!match) return invalid;
             const [, assignment, expiry, proof] = match;
 
             // The link secret is derived from the master key, the assignment and its expiry date, so none
             // of them can be changed without invalidating it. The proof binds the secret to this login.
             const secret = hmac(process.env.MASTER_KEY.trim(), `${assignment}:${expiry}`);
-            const expected = hmac(secret, login.toLowerCase());
-            if (proof !== expected) return refuse('proof does not match');
+            if (proof !== hmac(secret, login.toLowerCase())) return invalid;
+
             const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');  // UTC, YYYYMMDD
-            if (expiry < today) return refuse('link expired');
+            if (expiry < today) return 'This link has expired. Please ask your instructor for a new one.';
 
             const name = `${assignment}-${login}`;
             const url = `https://github.com/${owner}/${name}`;
@@ -64,20 +62,19 @@ jobs:
               await github.rest.repos.createInOrg({ org: owner, name, private: true });
             } catch (e) {
               if (e.status !== 422) throw e;
-              return refuse('could not create the repo: ' + e.message,
-                `A repository named \`${name}\` already exists. If it is yours, open your invitations: ${url}/invitations\n\n` +
-                'Otherwise, please contact your instructor.');
+              core.info(e.message);
+              return `A repository named \`${name}\` already exists. If it is yours, open your invitations: ${url}/invitations\n\n` +
+                'Otherwise, please contact your instructor.';
             }
             await github.rest.repos.addCollaborator({ owner, repo: name, username: login, permission: 'push' });
 
-            core.setOutput('message',
-              `@${login} your repository is ready: ${url}\n\n` +
-              `Accept the invitation here (if you have not already): ${url}/invitations`);
+            return `@${login} your repository is ready: ${url}\n\n` +
+              `Accept the invitation here (if you have not already): ${url}/invitations`;
 
       - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         if: always()
         env:
-          MESSAGE: ${{ steps.make.outputs.message }}
+          MESSAGE: ${{ steps.make.outputs.result }}
         with:
           script: |
             const body = process.env.MESSAGE ||
