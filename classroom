@@ -6,8 +6,8 @@ USAGE="Usage:
                                               <assignment>. The link expires after [days] days
                                               (default 30).
   classroom clone <org> <assignment> [dir]    Clone every repo named <assignment>-* into [dir]
-                                              (default ./<assignment>), or pull it if it is
-                                              already cloned."
+                                              (default ./<assignment>). Repos that are already
+                                              cloned are skipped."
 
 if [ $# -lt 3 ]; then
   echo "$USAGE" >&2
@@ -56,12 +56,8 @@ case $action in
 
     mkdir -p "$dir"
     for repo in $repos; do
-      if [ -d "$dir/$repo" ]; then
-        if ! git -C "$dir/$repo" pull --ff-only -q; then
-          echo "Could not pull $repo (is it empty?)" >&2
-        fi
-      else
-        gh repo clone "$org/$repo" "$dir/$repo" -- -q
+      if [ ! -d "$dir/$repo" ]; then
+        git clone "git@github.com:$org/$repo.git" "$dir/$repo"
       fi
     done
     ;;

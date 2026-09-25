@@ -42,10 +42,10 @@ To limit `gh` to one org, set `GH_TOKEN` to a fine-grained PAT owned by that org
 
 ```
 ./classroom link  myorg F26_HW1 [days]   # prints the student link; valid 30 days unless you pass days
-./classroom clone myorg F26_HW1 [dir]    # clones or pulls every repo named F26_HW1-*
+./classroom clone myorg F26_HW1 [dir]    # git clones every repo named F26_HW1-* that isn't cloned yet
 ```
 
-Nothing is stored for an assignment: the link is derived from the org's key (`~/.config/gh_classroom/<org>.key`), the assignment name and the expiry date. Run `link` again any time for a fresh one. If you use https for git, run `gh auth setup-git` once so `clone` can pull.
+Nothing is stored for an assignment: the link is derived from the org's key (`~/.config/gh_classroom/<org>.key`), the assignment name and the expiry date. Run `link` again any time for a fresh one. `clone` uses SSH, so your SSH key must be added to your GitHub account.
 
 ## Harden the org
 
