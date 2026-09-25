@@ -1,10 +1,9 @@
 # Serverless GitHub Classroom
 
-Students open a link, enter their GitHub username, and get a private repo `<assignment>-<username>` in your org. It runs entirely on GitHub Pages and Actions, through a GitHub App installed only on the orgs you choose.
-
+- Students open a link, enter their GitHub username, and get a private repo `<assignment>-<username>` in a github organization.
+- It runs entirely on GitHub Pages and Actions, through a GitHub App installed only on the orgs you choose.
+- Allows cloning all student repositories
 ## Requirements
-
-- Linux with `bash`, `git` and `openssl`
 - The [`gh` CLI](https://cli.github.com), logged in (`gh auth login`) as an owner of the org
 - An SSH key added to your GitHub account (used by `./classroom clone`)
 
@@ -12,7 +11,7 @@ Students open a link, enter their GitHub username, and get a private repo `<assi
 
 ### 1. Create the GitHub App
 
-Go to `https://github.com/organizations/<org>/settings/apps/new` (org **Settings > Developer settings > GitHub Apps > New GitHub App**) and fill in:
+In your org, go to **Settings > Developer settings > GitHub Apps > New GitHub App** (see GitHub's guide to [registering a GitHub App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app)) and fill in:
 
 | Field | Value |
 |---|---|
