@@ -1,4 +1,3 @@
 [1] Claude Code: Sonnet 5, Anthropic. Used on 9/24/2026.
-    - Files written by me:
-      README.md (with AI assistance)
-      Transcript omitted due to having sensitive information.
+    - All files written primarily by Claude.
+    - Transcript omitted for security reasons.
