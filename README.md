@@ -2,7 +2,7 @@
 
 Students open a link, enter their GitHub username, and get a private repo `<assignment>-<username>` in your org. Runs on GitHub Pages and Actions through a GitHub App installed only on the orgs you choose.
 
-Publish this repo to any org and it works unedited. Requires `bash`, `git`, `openssl` and the [`gh` CLI](https://cli.github.com), logged in (`gh auth login`) as an owner of the org.
+Publish this repo to any org and it works unedited. Requires Linux with `bash`, `git`, `openssl` and the [`gh` CLI](https://cli.github.com), logged in (`gh auth login`) as an owner of the org.
 
 ## Set up an org
 

@@ -36,11 +36,7 @@ case $action in
     fi
     key=$(<"$key_file")
 
-    if date --version >/dev/null 2>&1; then
-      expiry=$(date -u -d "+$days days" +%Y%m%d)   # GNU date
-    else
-      expiry=$(date -u -v+"$days"d +%Y%m%d)        # BSD date (macOS)
-    fi
+    expiry=$(date -u -d "+$days days" +%Y%m%d)
 
     # The first 32 hex characters of HMAC-SHA256(key, "<assignment>:<expiry>").
     secret=$(printf %s "$assignment:$expiry" | openssl dgst -sha256 -hmac "$key" | awk '{print substr($NF, 1, 32)}')
