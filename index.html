@@ -25,10 +25,10 @@
 </form>
 
 <script>
-// Link: https://<org>.github.io/<repo>/#<assignment>.<secret>
+// Link: https://<org>.github.io/<repo>/#<assignment>.<expiry>.<secret>
 const org = location.hostname.split('.')[0];
 const repo = location.pathname.split('/')[1];
-const [assignment, secret] = location.hash.slice(1).split('.');
+const [assignment, expiry, secret] = location.hash.slice(1).split('.');
 
 // Hex of the first 128 bits of HMAC-SHA256(key, message).
 async function hmac(key, message) {
@@ -41,10 +41,10 @@ async function hmac(key, message) {
 document.getElementById('form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const username = document.getElementById('user').value.trim().toLowerCase();
-  const proof = await hmac(secret, assignment + ':' + username);
+  const proof = await hmac(secret, username);
   // A wrong link just produces a proof that the workflow refuses.
   location.href = `https://github.com/${org}/${repo}/issues/new?template=signup.yml` +
-    `&code=${encodeURIComponent(assignment + '.' + proof)}`;
+    `&code=${encodeURIComponent(`${assignment}.${expiry}.${proof}`)}`;
 });
 </script>
 </body>

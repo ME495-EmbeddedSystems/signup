@@ -61,10 +61,10 @@ def resolve_org(arg):
 
 # ---- assignment secrets (must match index.html and the workflow) -------------
 
-def derive_secret(master_key, assignment, nonce):
-    msg = f"{assignment}:{nonce}".encode()
+def derive_secret(master_key, assignment, expiry):
+    msg = f"{assignment}:{expiry}".encode()
     return hmac.new(master_key.encode(), msg, hashlib.sha256).hexdigest()[:32]
 
 
-def make_link(org, repo, assignment, secret):
-    return f"https://{org.lower()}.github.io/{repo}/#{assignment}.{secret}"
+def make_link(org, repo, assignment, expiry, secret):
+    return f"https://{org.lower()}.github.io/{repo}/#{assignment}.{expiry}.{secret}"

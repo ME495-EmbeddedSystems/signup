@@ -4,7 +4,7 @@
     python tools/deploy.py <org> [--repo NAME] [--app-id N --private-key app.pem]
 
 Creates the repo if needed, pushes this directory's files, enables Pages, and generates the
-org's master key. Safe to re-run: files are refreshed but the org's assignments.json is kept.
+org's master key. Safe to re-run.
 """
 import argparse
 import secrets
@@ -32,10 +32,9 @@ def push_files(org, repo):
             die("run deploy.py from a git checkout of this project (git init && git add -A && git commit)")
         for rel in filter(None, listing.stdout.split("\0")):
             src, dst = ROOT / rel, work / rel
-            if not src.is_file() or (rel == "assignments.json" and dst.exists()):
-                continue  # deleted locally, or keep the org's existing assignments
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dst)
+            if src.is_file():  # skip files deleted locally but still tracked
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dst)
         subprocess.run(["git", "add", "-A"], cwd=work, check=True)
         if subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=work).returncode == 0:
             print("Repo files already up to date.")

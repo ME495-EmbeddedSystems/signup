@@ -39,21 +39,18 @@ Requires Python 3, `git`, and the [`gh` CLI](https://cli.github.com) logged in (
 
 `python tools/deploy.py myorg --app-id 12345 --private-key ~/Downloads/app.pem` does all of step 2.
 
-To update an existing deployment, just push. `new_assignment.py` commits `assignments.json` to the org repo, so pull first:
-```
-git pull --rebase $ORG main && git push $ORG main
-```
+To update an existing deployment, just `git push $ORG main`.
 
 To limit `gh` to one org, set `GH_TOKEN` to a fine-grained PAT owned by that org (Administration, Contents, Pages, Secrets: read & write) instead of using `gh auth login`.
 
 ## Use
 
 ```
-python tools/new_assignment.py F26_HW1 --org myorg            # prints the student link
-python tools/new_assignment.py F26_HW1 --org myorg --close    # stop new sign-ups
-python tools/new_assignment.py F26_HW1 --org myorg --rotate   # new link; old one stops working
-python tools/clone.py F26_HW1 --org myorg [dest]              # clone or pull all student repos
+python tools/new_assignment.py F26_HW1 --org myorg [--days 30]   # prints the student link
+python tools/clone.py F26_HW1 --org myorg [dest]                 # clone or pull all student repos
 ```
+
+The link expires at the end of its last day (UTC), 30 days out unless you pass `--days`. Nothing is stored: the link is derived from the org's master key, the assignment name and the expiry date. Run `new_assignment.py` again later for a fresh link. Student repos are named `<assignment>-<username>`.
 
 `--org` may be omitted if only one org is configured, or set via `CLASSROOM_ORG`.
 
@@ -66,7 +63,7 @@ python tools/clone.py F26_HW1 --org myorg [dest]              # clone or pull al
 
 ## Notes
 
-- Anyone with the link can join. `--close` or `--rotate` if it leaks. `max_repos` in `assignments.json` (default 200) caps repos.
+- Anyone with the link can join until it expires. There is no early revoke; to cancel every link, replace the `MASTER_KEY` secret (and `master_key` in `~/.classroom/<org>.json`). The workflow refuses to create more than 300 repos per assignment.
 - Students accept a collaborator invite; the workflow comment links to it.
 - A student's repo is never reused. To redo one, delete the repo and have them open the link again.
 - The repo is public so students can open issues.

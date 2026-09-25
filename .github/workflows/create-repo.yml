@@ -5,7 +5,6 @@ on:
     types: [opened]
 
 permissions:
-  contents: read
   issues: write
 
 jobs:
@@ -13,10 +12,6 @@ jobs:
     if: github.event.issue.user.type == 'User'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-
       - id: app
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
         with:
@@ -36,39 +31,38 @@ jobs:
           github-token: ${{ steps.app.outputs.token }}
           script: |
             const crypto = require('crypto');
-            const fs = require('fs');
 
+            const MAX_REPOS = 300;  // per assignment: a safety net in case a link leaks
             const owner = context.repo.owner;
             const login = context.payload.issue.user.login;  // set by GitHub, cannot be forged
             const hmac = (key, message) =>
               crypto.createHmac('sha256', key).update(message).digest('hex').slice(0, 32);
-            const refuse = (why, message = 'This link is invalid or closed. Please ask your instructor for a current link.') => {
+            const refuse = (why, message = 'This link is invalid or has expired. Please ask your instructor for a current link.') => {
               core.info('Refused: ' + why);
               core.setOutput('message', message);
             };
 
-            // The body must be exactly what the issue form produces: "### Code", then "<assignment>.<proof>".
-            const match = (context.payload.issue.body || '').trim().match(/^###\s+Code\s+([A-Za-z0-9_-]+)\.([0-9a-f]{32})$/);
-            const [, assignment, proof] = match || [];
+            // The body must be exactly what the issue form produces: "### Code", then "<assignment>.<expiry>.<proof>".
+            const match = (context.payload.issue.body || '').trim()
+              .match(/^###\s+Code\s+([A-Za-z0-9_-]+)\.(\d{8})\.([0-9a-f]{32})$/);
+            if (!match) return refuse('malformed code');
+            const [, assignment, expiry, proof] = match;
 
-            const assignments = JSON.parse(fs.readFileSync('assignments.json', 'utf8'));
-            if (!Object.hasOwn(assignments, assignment) || !assignments[assignment].open) {
-              return refuse('unknown or closed assignment');
-            }
-            const { prefix, nonce, max_repos } = assignments[assignment];
-
-            // The link secret is derived from the master key; the proof binds it to this login.
-            const secret = hmac(process.env.MASTER_KEY.trim(), `${assignment}:${nonce}`);
-            const expected = hmac(secret, `${assignment}:${login.toLowerCase()}`);
+            // The link secret is derived from the master key, the assignment and its expiry date, so none
+            // of them can be changed without invalidating it. The proof binds the secret to this login.
+            const secret = hmac(process.env.MASTER_KEY.trim(), `${assignment}:${expiry}`);
+            const expected = hmac(secret, login.toLowerCase());
             if (!crypto.timingSafeEqual(Buffer.from(proof), Buffer.from(expected))) {
               return refuse('proof does not match');
             }
+            const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');  // UTC, YYYYMMDD
+            if (expiry < today) return refuse('link expired');
 
-            const name = `${prefix}-${login}`;
+            const name = `${assignment}-${login}`;
             const url = `https://github.com/${owner}/${name}`;
 
             // Never reuse an existing repo: that could hand someone else's repo (or a repo like
-            // <prefix>-solutions) to whoever registers a matching username.
+            // <assignment>-solutions) to whoever registers a matching username.
             const exists = await github.rest.repos.get({ owner, repo: name })
               .then(() => true, (e) => { if (e.status === 404) return false; throw e; });
             if (exists) {
@@ -78,8 +72,8 @@ jobs:
             }
 
             const repos = await github.paginate(github.rest.repos.listForOrg, { org: owner, per_page: 100 });
-            if (repos.filter((r) => r.name.startsWith(prefix + '-')).length >= max_repos) {
-              return refuse('max_repos reached');
+            if (repos.filter((r) => r.name.startsWith(assignment + '-')).length >= MAX_REPOS) {
+              return refuse('too many repos for this assignment');
             }
 
             await github.rest.repos.createInOrg({ org: owner, name, private: true });
