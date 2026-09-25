@@ -28,7 +28,7 @@ Publish this repo to any org and it works unedited. Requires `bash`, `git`, `ope
    printf %s "$APP_ID" | gh secret set APP_ID     --repo $ORG/$REPO
    gh secret set APP_PRIVATE_KEY --repo $ORG/$REPO < $PEM
 
-   (umask 077; mkdir -p ~/.config/gh_classroom; printf %s "$KEY" > ~/.config/gh_classroom/$(echo $ORG | tr A-Z a-z).key)
+   (umask 077; mkdir -p ~/.config/gh_classroom; printf %s "$KEY" > ~/.config/gh_classroom/$ORG.key)
    shred -u $PEM    # the App key now lives only in the Actions secret
    ```
    GitHub never shows a secret again, so keep `~/.config/gh_classroom/<org>.key` (the `MASTER_KEY` value): `./classroom link` needs it.

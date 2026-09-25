@@ -4,7 +4,7 @@
 set -euo pipefail
 
 [ $# -ge 3 ] || { sed -n '2,3p' "$0" >&2; exit 1; }
-cmd=$1 org=$(echo "$2" | tr A-Z a-z) name=$3   # GitHub org names are case-insensitive
+cmd=$1 org=$2 name=$3
 
 case $cmd in
   link)
