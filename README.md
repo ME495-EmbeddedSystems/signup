@@ -44,7 +44,7 @@ It creates the public `<org>/signup` repo from this directory, turns on GitHub P
 
 **Keep `~/.config/gh_classroom/<org>.key`.** It is the only copy of the master key (GitHub never shows a secret again), and `./classroom link` needs it.
 
-If setup stops because Pages creation is disabled, allow it under org **Settings > Member privileges > Pages creation (Public)** and run `./setup` again.
+If setup stops partway, for example because Pages creation is disabled (allow it under org **Settings > Member privileges > Pages creation (Public)**), fix the problem and run `./setup` again. Once setup has finished, it refuses to run again for that org, so it can never replace the master key.
 
 ### 3. Test it
 

@@ -5,7 +5,7 @@ USAGE="Usage:
   setup <org> <app-id> <private-key.pem>   One-time setup of <org>: creates the public <org>/signup repo
                                            from this directory, turns on GitHub Pages, stores the
                                            Actions secrets, and saves the org's master key in
-                                           ~/.config/gh_classroom/<org>.key. Safe to re-run."
+                                           ~/.config/gh_classroom/<org>.key."
 
 if [ $# -ne 3 ]; then
   echo "$USAGE" >&2
@@ -23,15 +23,15 @@ if [ ! -r "$pem" ]; then
   exit 1
 fi
 
-# The master key signs every assignment link. Reuse it if this org was set up before, so
-# existing links keep working; GitHub never shows a secret again, so this file is the only copy.
-if [ -r "$key_file" ]; then
-  echo "Using the existing master key in $key_file"
-else
-  mkdir -p "$(dirname "$key_file")"
-  (umask 077; openssl rand -hex 32 | tr -d '\n' > "$key_file")
-  echo "Saved a new master key in $key_file"
+# The key file is written last, so it only exists once setup has finished. A new key would
+# invalidate every link already handed out, so never replace it.
+if [ -e "$key_file" ]; then
+  echo "$org is already set up ($key_file exists)." >&2
+  exit 1
 fi
+
+# The master key signs every assignment link.
+key=$(openssl rand -hex 32)
 
 if gh repo view "$org/signup" >/dev/null 2>&1; then
   echo "$org/signup already exists; not recreating it"
@@ -47,9 +47,13 @@ elif ! gh api -X POST "repos/$org/signup/pages" -f 'source[branch]=main' -f 'sou
   exit 1
 fi
 
-gh secret set MASTER_KEY --repo "$org/signup" < "$key_file"
+printf %s "$key" | gh secret set MASTER_KEY --repo "$org/signup"
 printf %s "$app_id" | gh secret set APP_ID --repo "$org/signup"
 gh secret set APP_PRIVATE_KEY --repo "$org/signup" < "$pem"
+
+# GitHub never shows a secret again, so this file is the only copy of the master key.
+mkdir -p "$(dirname "$key_file")"
+(umask 077; printf %s "$key" > "$key_file")
 
 echo
 echo "Done. $org is ready. You can now delete $pem; the App key is stored as an Actions secret."
