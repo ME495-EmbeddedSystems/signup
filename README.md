@@ -67,7 +67,7 @@ Commit your changes here, then `git push <org> main`.
 ## Notes
 
 - Anyone with the link can join until it expires. There is no early revoke; to cancel every link, replace both the `MASTER_KEY` secret and `~/.config/gh_classroom/<org>.key` with a new key.
-- Students must accept a collaborator invite; the workflow's comment links to it.
+- Students must accept a collaborator invite; GitHub prompts them when they open the repo link in the workflow's comment.
 - A student's repo is never reused. To redo one, delete the repo and have the student open the link again.
 - Keep assignment names short: a repo name (`<assignment>-<username>`) can be at most 100 characters.
 - `signup` is public so students can open issues, which also makes its git history and commit author emails public. Commit with a `users.noreply.github.com` address if you don't want yours shown.
