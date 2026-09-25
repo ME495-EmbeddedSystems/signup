@@ -9,6 +9,8 @@
 
 ## Set up an org (once per org)
 
+Each org you use needs its own copy of this repository as a **public repo named `signup`** in that org (`<org>/signup`). Its workflow creates the student repos, and it serves the student page at `https://<org>.github.io/signup/`. The name must be exactly `signup`, because `./classroom link` builds links to that address. You don't create it by hand: `./setup` in step 2 creates it from this directory.
+
 ### 1. Create the GitHub App
 
 In your org, go to **Settings > Developer settings > GitHub Apps > New GitHub App** (see GitHub's guide to [registering a GitHub App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app)) and fill in:
