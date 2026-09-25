@@ -59,4 +59,4 @@ Nothing is stored for an assignment: the link is derived from the org's key (`~/
 - Anyone with the link can join until it expires. There is no early revoke; to cancel every link, replace the `MASTER_KEY` secret and `~/.config/gh_classroom/<org>.key`. The workflow refuses to create more than 300 repos per assignment.
 - Students accept a collaborator invite; the workflow comment links to it.
 - A student's repo is never reused. To redo one, delete the repo and have them open the link again.
-- The repo is public so students can open issues.
+- The repo is public so students can open issues. That includes its git history and commit author emails; use a `users.noreply.github.com` address if you don't want yours shown.

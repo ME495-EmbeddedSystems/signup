@@ -34,6 +34,10 @@ jobs:
             const hmac = (key, message) =>
               crypto.createHmac('sha256', key).update(message).digest('hex').slice(0, 32);
 
+            // Fail closed: the scheme is public, so with an empty key anyone could compute valid codes.
+            const masterKey = process.env.MASTER_KEY.trim();
+            if (masterKey.length < 32) throw new Error('MASTER_KEY is missing or too short');
+
             const owner = context.repo.owner;
             const login = context.payload.issue.user.login;  // set by GitHub, cannot be forged
             const invalid = 'This link is invalid. Please ask your instructor for a current link.';
@@ -45,7 +49,7 @@ jobs:
 
             // The link secret is derived from the master key, the assignment and its expiry date, so none
             // of them can be changed without invalidating it. The proof binds the secret to this login.
-            const secret = hmac(process.env.MASTER_KEY.trim(), `${assignment}:${expiry}`);
+            const secret = hmac(masterKey, `${assignment}:${expiry}`);
             if (proof !== hmac(secret, login.toLowerCase())) return invalid;
 
             const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');  // UTC, YYYYMMDD

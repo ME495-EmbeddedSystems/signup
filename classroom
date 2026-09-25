@@ -35,6 +35,10 @@ case $action in
       exit 1
     fi
     key=$(<"$key_file")
+    if [ ${#key} -lt 32 ]; then
+      echo "The key in $key_file is too short; it should be the org's 64-character MASTER_KEY." >&2
+      exit 1
+    fi
 
     expiry=$(date -u -d "+$days days" +%Y%m%d)
 
