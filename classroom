@@ -8,7 +8,7 @@ cmd=$1 org=$(echo "$2" | tr A-Z a-z) name=$3   # GitHub org names are case-insen
 
 case $cmd in
   link)
-    keyfile=$HOME/.classroom/$org   # the org's MASTER_KEY, saved during setup
+    keyfile=$HOME/.config/gh_classroom/$org.key   # the org's MASTER_KEY, saved during setup
     [ -r "$keyfile" ] || { echo "no key for $org at $keyfile (see the README setup)" >&2; exit 1; }
     key=$(<"$keyfile")
     expiry=$(date -u -d "+${4:-30} days" +%Y%m%d 2>/dev/null || date -u -v+"${4:-30}"d +%Y%m%d)  # GNU or BSD date
