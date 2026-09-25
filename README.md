@@ -8,10 +8,10 @@
 - An SSH key added to your GitHub account (used by `./classroom clone`)
 
 ## Set up an org (once per org)
+### 1. This Repository
+Each github organization needs it's own copy of this repository as a **public repo named `signup** (`<org>/signup`).
 
-Each org you use needs its own copy of this repository as a **public repo named `signup`** in that org (`<org>/signup`). Its workflow creates the student repos, and it serves the student page at `https://<org>.github.io/signup/`. The name must be exactly `signup`, because `./classroom link` builds links to that address. You don't create it by hand: `./setup` in step 2 creates it from this directory.
-
-### 1. Create the GitHub App
+### 2. Create the GitHub App
 
 In your org, go to **Settings > Developer settings > GitHub Apps > New GitHub App** (see GitHub's guide to [registering a GitHub App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app)) and fill in:
 
@@ -33,7 +33,7 @@ Click **Create GitHub App**, then on the App's page:
 2. Click **Generate a private key**. This downloads a `.pem` file. Keep it outside this directory.
 3. Click **Install App** in the left sidebar, choose your org, and select **All repositories**.
 
-### 2. Run the setup script
+### 3. Run the setup script
 
 From this directory:
 
@@ -45,24 +45,12 @@ It creates the public `<org>/signup` repo from this directory, turns on GitHub P
 
 **Keep `~/.config/gh_classroom/<org>.key`.** It is the only copy of the master key (GitHub never shows a secret again), and `./classroom link` needs it.
 
-If setup stops partway, for example because Pages creation is disabled (allow it under org **Settings > Member privileges > Pages creation (Public)**), fix the problem and run `./setup` again. Once setup has finished, it refuses to run again for that org, so it can never replace the master key.
-
-### 3. Test it
-
-Make a short-lived link, open it, sign up as yourself, then delete the test repo:
-
-```
-./classroom link <org> SETUPTEST 1
-```
-
-## Use
+## Usage
 
 ```
 ./classroom link  <org> <assignment> [days]   # print the student link (valid 30 days by default)
-./classroom clone <org> <assignment> [dir]    # clone every <assignment>-* repo not yet cloned
+./classroom clone <org> <assignment> [dir]    # clone every <assignment>-* repo not yet cloned to a given directory
 ```
-
-Nothing is stored per assignment: a link is derived from the org's master key, the assignment name and the expiry date. Run `link` again whenever you need a fresh one.
 
 ## Update an existing org
 
