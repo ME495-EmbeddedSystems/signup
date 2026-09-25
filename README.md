@@ -2,21 +2,19 @@
 
 Students open a link, enter their GitHub username, and get a private repo `<assignment>-<username>` in your org. Runs on GitHub Pages and Actions through a GitHub App installed only on the orgs you choose.
 
-Publish this repo to any org, under any name, and it works unedited.
-
-Requires Python 3, `git`, and the [`gh` CLI](https://cli.github.com) logged in (`gh auth login`) as an owner of the org.
+Publish this repo to any org and it works unedited. Requires `bash`, `git`, `openssl` and the [`gh` CLI](https://cli.github.com), logged in (`gh auth login`) as an owner of the org.
 
 ## Set up an org
 
 1. Create a GitHub App at `https://github.com/organizations/myorg/settings/apps/new` (org Settings > Developer settings > GitHub Apps > New GitHub App):
    - **Name**: any globally unique name, e.g. `myorg-classroom`
-   - **Homepage URL**: `https://myorg.github.io/signup/` (required, not used; match your repo name)
+   - **Homepage URL**: `https://myorg.github.io/signup/` (required, not used)
    - **Callback URL**, **Setup URL**: blank. Leave "Request user authorization", "Enable Device Flow" and "Expire user authorization tokens" unchecked.
    - **Webhook**: uncheck "Active"
    - **Repository permissions**: Administration: Read and write; Metadata: Read-only. No other permissions.
    - **Subscribe to events**: none
    - **Where can this GitHub App be installed?**: Only on this account
-   
+
    Click **Create GitHub App**. On the next page, note the **App ID** and click **Generate a private key** (saves a `.pem`; keep it outside this directory, e.g. `~/Downloads/app.pem`). Then **Install App** (left sidebar) > install on `myorg` > **All repositories**.
 2. From this directory:
    ```
@@ -26,33 +24,28 @@ Requires Python 3, `git`, and the [`gh` CLI](https://cli.github.com) logged in (
    gh api -X POST repos/$ORG/$REPO/pages -f 'source[branch]=main' -f 'source[path]=/'
 
    KEY=$(openssl rand -hex 32)
-   printf %s "$KEY"    | gh secret set MASTER_KEY      --repo $ORG/$REPO
-   printf %s "$APP_ID" | gh secret set APP_ID          --repo $ORG/$REPO
+   printf %s "$KEY"    | gh secret set MASTER_KEY --repo $ORG/$REPO
+   printf %s "$APP_ID" | gh secret set APP_ID     --repo $ORG/$REPO
    gh secret set APP_PRIVATE_KEY --repo $ORG/$REPO < $PEM
 
-   mkdir -p ~/.classroom && printf '{"master_key":"%s","repo":"%s"}\n' $KEY $REPO > ~/.classroom/$ORG.json
-   chmod 600 ~/.classroom/$ORG.json
+   (umask 077; mkdir -p ~/.classroom; printf %s "$KEY" > ~/.classroom/$(echo $ORG | tr A-Z a-z))
    shred -u $PEM    # the key now lives only in the Actions secret
    ```
-   Any repo name works, except `$ORG.github.io`.
+   Any repo name works, except `$ORG.github.io`; if it isn't `signup`, run the commands below with `REPO=<name>`.
    If enabling Pages fails with "Pages creation disabled", allow it under Org settings > Member privileges > Pages creation (Public), then re-run that command.
 
-`python tools/deploy.py myorg --app-id 12345 --private-key ~/Downloads/app.pem` does all of step 2.
-
-To update an existing deployment, just `git push $ORG main`.
+To update an existing deployment, run `git push $ORG main`.
 
 To limit `gh` to one org, set `GH_TOKEN` to a fine-grained PAT owned by that org (Administration, Contents, Pages, Secrets: read & write) instead of using `gh auth login`.
 
 ## Use
 
 ```
-python tools/new_assignment.py F26_HW1 --org myorg [--days 30]   # prints the student link
-python tools/clone.py F26_HW1 --org myorg [dest]                 # clone or pull all student repos
+./classroom link  myorg F26_HW1 [days]   # prints the student link; valid 30 days unless you pass days
+./classroom clone myorg F26_HW1 [dir]    # clones or pulls every repo named F26_HW1-*
 ```
 
-The link expires at the end of its last day (UTC), 30 days out unless you pass `--days`. Nothing is stored: the link is derived from the org's master key, the assignment name and the expiry date. Run `new_assignment.py` again later for a fresh link. Student repos are named `<assignment>-<username>`.
-
-`--org` may be omitted if only one org is configured, or set via `CLASSROOM_ORG`.
+Nothing is stored for an assignment: the link is derived from the org's key (`~/.classroom/<org>`), the assignment name and the expiry date. Run `link` again any time for a fresh one. If you use https for git, run `gh auth setup-git` once so `clone` can pull.
 
 ## Harden the org
 
@@ -63,7 +56,7 @@ The link expires at the end of its last day (UTC), 30 days out unless you pass `
 
 ## Notes
 
-- Anyone with the link can join until it expires. There is no early revoke; to cancel every link, replace the `MASTER_KEY` secret (and `master_key` in `~/.classroom/<org>.json`). The workflow refuses to create more than 300 repos per assignment.
+- Anyone with the link can join until it expires. There is no early revoke; to cancel every link, replace the `MASTER_KEY` secret and `~/.classroom/<org>`. The workflow refuses to create more than 300 repos per assignment.
 - Students accept a collaborator invite; the workflow comment links to it.
 - A student's repo is never reused. To redo one, delete the repo and have them open the link again.
 - The repo is public so students can open issues.

@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# classroom link  <org> <assignment> [days=30]   print the student link (expires after <days>)
+# classroom clone <org> <assignment> [dir]       clone or pull every repo named <assignment>-*
+set -euo pipefail
+
+[ $# -ge 3 ] || { sed -n '2,3p' "$0" >&2; exit 1; }
+cmd=$1 org=$(echo "$2" | tr A-Z a-z) name=$3   # GitHub org names are case-insensitive
+
+case $cmd in
+  link)
+    keyfile=$HOME/.classroom/$org   # the org's MASTER_KEY, saved during setup
+    [ -r "$keyfile" ] || { echo "no key for $org at $keyfile (see the README setup)" >&2; exit 1; }
+    key=$(<"$keyfile")
+    expiry=$(date -u -d "+${4:-30} days" +%Y%m%d 2>/dev/null || date -u -v+"${4:-30}"d +%Y%m%d)  # GNU or BSD date
+    secret=$(printf %s "$name:$expiry" | openssl dgst -sha256 -hmac "$key" | awk '{print substr($NF, 1, 32)}')
+    echo "https://$org.github.io/${REPO:-signup}/#$name.$expiry.$secret"
+    echo "Valid through $expiry (UTC)" >&2
+    ;;
+  clone)
+    dir=${4:-$name}
+    repos=$(gh repo list "$org" --limit 1000 --json name --jq '.[].name' | grep "^$name-" || true)
+    [ -n "$repos" ] || { echo "no repos in $org start with $name-" >&2; exit 1; }
+    mkdir -p "$dir"
+    while read -r repo; do
+      if [ -d "$dir/$repo" ]; then
+        git -C "$dir/$repo" pull --ff-only -q || echo "could not pull $repo (empty repo?)" >&2
+      else
+        gh repo clone "$org/$repo" "$dir/$repo" -- -q
+      fi
+    done <<< "$repos"
+    ;;
+  *)
+    sed -n '2,3p' "$0" >&2; exit 1
+    ;;
+esac
