@@ -1,62 +1,84 @@
 # Serverless GitHub Classroom
 
-Students open a link, enter their GitHub username, and get a private repo `<assignment>-<username>` in your org. Runs on GitHub Pages and Actions through a GitHub App installed only on the orgs you choose.
+Students open a link, enter their GitHub username, and get a private repo `<assignment>-<username>` in your org. It runs entirely on GitHub Pages and Actions, through a GitHub App installed only on the orgs you choose.
 
-Publish this repo to any org and it works unedited. Requires Linux with `bash`, `git`, `openssl` and the [`gh` CLI](https://cli.github.com), logged in (`gh auth login`) as an owner of the org.
+## Requirements
 
-## Set up an org
+- Linux with `bash`, `git` and `openssl`
+- The [`gh` CLI](https://cli.github.com), logged in (`gh auth login`) as an owner of the org
+- An SSH key added to your GitHub account (used by `./classroom clone`)
 
-1. Create a GitHub App at `https://github.com/organizations/myorg/settings/apps/new` (org Settings > Developer settings > GitHub Apps > New GitHub App):
-   - **Name**: any globally unique name, e.g. `myorg-classroom`
-   - **Homepage URL**: `https://myorg.github.io/signup/` (required, not used)
-   - **Callback URL**, **Setup URL**: blank. Leave "Request user authorization", "Enable Device Flow" and "Expire user authorization tokens" unchecked.
-   - **Webhook**: uncheck "Active"
-   - **Repository permissions**: Administration: Read and write; Metadata: Read-only. No other permissions.
-   - **Subscribe to events**: none
-   - **Where can this GitHub App be installed?**: Only on this account
+## Set up an org (once per org)
 
-   Click **Create GitHub App**. On the next page, note the **App ID** and click **Generate a private key** (saves a `.pem`; keep it outside this directory, e.g. `~/Downloads/app.pem`). Then **Install App** (left sidebar) > install on `myorg` > **All repositories**.
-2. From this directory:
-   ```
-   ORG=myorg; APP_ID=12345; PEM=~/Downloads/app.pem
+### 1. Create the GitHub App
 
-   gh repo create $ORG/signup --public --source . --remote $ORG --push
-   gh api -X POST repos/$ORG/signup/pages -f 'source[branch]=main' -f 'source[path]=/'
+Go to `https://github.com/organizations/<org>/settings/apps/new` (org **Settings > Developer settings > GitHub Apps > New GitHub App**) and fill in:
 
-   KEY=$(openssl rand -hex 32)
-   printf %s "$KEY"    | gh secret set MASTER_KEY --repo $ORG/signup
-   printf %s "$APP_ID" | gh secret set APP_ID     --repo $ORG/signup
-   gh secret set APP_PRIVATE_KEY --repo $ORG/signup < $PEM
+| Field | Value |
+|---|---|
+| GitHub App name | Any unused name, e.g. `<org>-classroom` |
+| Homepage URL | `https://<org>.github.io/signup/` (required, but not used) |
+| Callback URL, Setup URL | Leave blank |
+| Request user authorization, Enable Device Flow, Expire user authorization tokens | Leave unchecked |
+| Webhook > Active | Uncheck |
+| Repository permissions | **Administration: Read and write**. Metadata stays Read-only. Nothing else. |
+| Organization and account permissions | None |
+| Subscribe to events | None |
+| Where can this GitHub App be installed? | **Only on this account** |
 
-   (umask 077; mkdir -p ~/.config/gh_classroom; printf %s "$KEY" > ~/.config/gh_classroom/$ORG.key)
-   shred -u $PEM    # the App key now lives only in the Actions secret
-   ```
-   GitHub never shows a secret again, so keep `~/.config/gh_classroom/<org>.key` (the `MASTER_KEY` value): `./classroom link` needs it.
-   If enabling Pages fails with "Pages creation disabled", allow it under Org settings > Member privileges > Pages creation (Public), then re-run that command.
+Click **Create GitHub App**, then on the App's page:
 
-To update an existing deployment, run `git push $ORG main`.
+1. Note the **App ID** near the top.
+2. Click **Generate a private key**. This downloads a `.pem` file. Keep it outside this directory.
+3. Click **Install App** in the left sidebar, choose your org, and select **All repositories**.
 
-To limit `gh` to one org, set `GH_TOKEN` to a fine-grained PAT owned by that org (Administration, Contents, Pages, Secrets: read & write) instead of using `gh auth login`.
+### 2. Run the setup script
+
+From this directory:
+
+```
+./setup <org> <app-id> <path-to-private-key.pem>
+```
+
+It creates the public `<org>/signup` repo from this directory, turns on GitHub Pages, stores the three Actions secrets (`APP_ID`, `APP_PRIVATE_KEY`, `MASTER_KEY`), and saves the org's master key in `~/.config/gh_classroom/<org>.key`. Then delete the `.pem` file.
+
+**Keep `~/.config/gh_classroom/<org>.key`.** It is the only copy of the master key (GitHub never shows a secret again), and `./classroom link` needs it.
+
+If setup stops because Pages creation is disabled, allow it under org **Settings > Member privileges > Pages creation (Public)** and run `./setup` again.
+
+### 3. Test it
+
+Make a short-lived link, open it, sign up as yourself, then delete the test repo:
+
+```
+./classroom link <org> SETUPTEST 1
+```
 
 ## Use
 
 ```
-./classroom link  myorg F26_HW1 [days]   # prints the student link; valid 30 days unless you pass days
-./classroom clone myorg F26_HW1 [dir]    # git clones every repo named F26_HW1-* that isn't cloned yet
+./classroom link  <org> <assignment> [days]   # print the student link (valid 30 days by default)
+./classroom clone <org> <assignment> [dir]    # clone every <assignment>-* repo not yet cloned
 ```
 
-Nothing is stored for an assignment: the link is derived from the org's key (`~/.config/gh_classroom/<org>.key`), the assignment name and the expiry date. Run `link` again any time for a fresh one. `clone` uses SSH, so your SSH key must be added to your GitHub account.
+Nothing is stored per assignment: a link is derived from the org's master key, the assignment name and the expiry date. Run `link` again whenever you need a fresh one.
+
+## Update an existing org
+
+Commit your changes here, then `git push <org> main`.
 
 ## Harden the org
 
-- Anyone with **write access to the signup repo** can read its Actions secrets, including the App key, which can administer every repo in the org. Keep write access to yourself and protect `main`.
+- Anyone with **write access to `signup`** can read its Actions secrets, including the App key, which can administer every repo in the org. Keep write access to yourself, and add a ruleset on `main` that blocks force-pushes and deletion.
 - Do not create org-level Actions secrets visible to all repos: students can run workflows in their own repos.
-- Restrict Actions (Org settings > Actions) to the signup repo, and leave "Allow forking of private repositories" off.
-- Set base permissions to "No permission".
+- Restrict Actions (org **Settings > Actions**) to the `signup` repo, and leave "Allow forking of private repositories" off.
+- Set the org's base permissions to "No permission".
+- To keep `gh` from reaching your other orgs, set `GH_TOKEN` to a fine-grained PAT owned by this org (Administration, Contents, Pages, Secrets: read & write) instead of using `gh auth login`.
 
 ## Notes
 
-- Anyone with the link can join until it expires. There is no early revoke; to cancel every link, replace the `MASTER_KEY` secret and `~/.config/gh_classroom/<org>.key`. The workflow refuses to create more than 300 repos per assignment.
-- Students accept a collaborator invite; the workflow comment links to it.
-- A student's repo is never reused. To redo one, delete the repo and have them open the link again.
-- The repo is public so students can open issues. That includes its git history and commit author emails; use a `users.noreply.github.com` address if you don't want yours shown.
+- Anyone with the link can join until it expires. There is no early revoke; to cancel every link, replace both the `MASTER_KEY` secret and `~/.config/gh_classroom/<org>.key` with a new key.
+- Students must accept a collaborator invite; the workflow's comment links to it.
+- A student's repo is never reused. To redo one, delete the repo and have the student open the link again.
+- Keep assignment names short: a repo name (`<assignment>-<username>`) can be at most 100 characters.
+- `signup` is public so students can open issues, which also makes its git history and commit author emails public. Commit with a `users.noreply.github.com` address if you don't want yours shown.
