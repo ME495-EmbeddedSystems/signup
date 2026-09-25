@@ -18,61 +18,55 @@ command=$1
 org=$2
 assignment=$3
 
-if [ "$command" = "link" ]; then
-  days=30
-  if [ $# -ge 4 ]; then
-    days=$4
-  fi
+case $command in
+  link)
+    days=${4:-30}
+    repo=${REPO:-signup}
 
-  repo=signup
-  if [ -n "${REPO:-}" ]; then
-    repo=$REPO
-  fi
-
-  # The org's MASTER_KEY, saved during setup (see the README).
-  key_file=$HOME/.config/gh_classroom/$org.key
-  if [ ! -r "$key_file" ]; then
-    echo "No key for $org: expected it in $key_file (see the README setup)" >&2
-    exit 1
-  fi
-  key=$(<"$key_file")
-
-  if date --version >/dev/null 2>&1; then
-    expiry=$(date -u -d "+$days days" +%Y%m%d)   # GNU date
-  else
-    expiry=$(date -u -v+"$days"d +%Y%m%d)        # BSD date (macOS)
-  fi
-
-  # The first 32 hex characters of HMAC-SHA256(key, "<assignment>:<expiry>").
-  secret=$(printf %s "$assignment:$expiry" | openssl dgst -sha256 -hmac "$key" | awk '{print substr($NF, 1, 32)}')
-
-  echo "https://$org.github.io/$repo/#$assignment.$expiry.$secret"
-  echo "Valid through $expiry (UTC)" >&2
-
-elif [ "$command" = "clone" ]; then
-  dir=$assignment
-  if [ $# -ge 4 ]; then
-    dir=$4
-  fi
-
-  repos=$(gh repo list "$org" --limit 1000 --json name --jq ".[].name | select(startswith(\"$assignment-\"))")
-  if [ -z "$repos" ]; then
-    echo "No repos in $org start with $assignment-" >&2
-    exit 1
-  fi
-
-  mkdir -p "$dir"
-  while read -r repo; do
-    if [ -d "$dir/$repo" ]; then
-      if ! git -C "$dir/$repo" pull --ff-only -q; then
-        echo "Could not pull $repo (is it empty?)" >&2
-      fi
-    else
-      gh repo clone "$org/$repo" "$dir/$repo" -- -q
+    # The org's MASTER_KEY, saved during setup (see the README).
+    key_file=$HOME/.config/gh_classroom/$org.key
+    if [ ! -r "$key_file" ]; then
+      echo "No key for $org: expected it in $key_file (see the README setup)" >&2
+      exit 1
     fi
-  done <<< "$repos"
+    key=$(<"$key_file")
 
-else
-  echo "$USAGE" >&2
-  exit 1
-fi
+    if date --version >/dev/null 2>&1; then
+      expiry=$(date -u -d "+$days days" +%Y%m%d)   # GNU date
+    else
+      expiry=$(date -u -v+"$days"d +%Y%m%d)        # BSD date (macOS)
+    fi
+
+    # The first 32 hex characters of HMAC-SHA256(key, "<assignment>:<expiry>").
+    secret=$(printf %s "$assignment:$expiry" | openssl dgst -sha256 -hmac "$key" | awk '{print substr($NF, 1, 32)}')
+
+    echo "https://$org.github.io/$repo/#$assignment.$expiry.$secret"
+    echo "Valid through $expiry (UTC)" >&2
+    ;;
+
+  clone)
+    dir=${4:-$assignment}
+
+    repos=$(gh repo list "$org" --limit 1000 --json name --jq ".[].name | select(startswith(\"$assignment-\"))")
+    if [ -z "$repos" ]; then
+      echo "No repos in $org start with $assignment-" >&2
+      exit 1
+    fi
+
+    mkdir -p "$dir"
+    while read -r repo; do
+      if [ -d "$dir/$repo" ]; then
+        if ! git -C "$dir/$repo" pull --ff-only -q; then
+          echo "Could not pull $repo (is it empty?)" >&2
+        fi
+      else
+        gh repo clone "$org/$repo" "$dir/$repo" -- -q
+      fi
+    done <<< "$repos"
+    ;;
+
+  *)
+    echo "$USAGE" >&2
+    exit 1
+    ;;
+esac
