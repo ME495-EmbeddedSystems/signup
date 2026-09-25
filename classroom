@@ -3,7 +3,8 @@
 # classroom clone <org> <assignment> [dir]       clone or pull every repo named <assignment>-*
 set -euo pipefail
 
-[ $# -ge 3 ] || { sed -n '2,3p' "$0" >&2; exit 1; }
+usage() { echo "usage: $0 link|clone <org> <assignment> [days|dir]" >&2; exit 1; }
+[ $# -ge 3 ] || usage
 cmd=$1 org=$2 name=$3
 
 case $cmd in
@@ -29,7 +30,5 @@ case $cmd in
       fi
     done <<< "$repos"
     ;;
-  *)
-    sed -n '2,3p' "$0" >&2; exit 1
-    ;;
+  *) usage ;;
 esac
