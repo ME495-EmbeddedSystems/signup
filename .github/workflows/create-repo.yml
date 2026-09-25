@@ -24,7 +24,7 @@ jobs:
       # Verifies the request and creates the repo. Sets the `message` output to the reply for the
       # student; if this step throws, the last step posts a generic failure message instead.
       - id: make
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           MASTER_KEY: ${{ secrets.MASTER_KEY }}
         with:
@@ -83,7 +83,7 @@ jobs:
               `@${login} your repository is ready: ${url}\n\n` +
               `Accept the invitation here (if you have not already): ${url}/invitations`);
 
-      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         if: always()
         env:
           MESSAGE: ${{ steps.make.outputs.message }}
