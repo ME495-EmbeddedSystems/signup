@@ -18,21 +18,20 @@ Publish this repo to any org and it works unedited. Requires `bash`, `git`, `ope
    Click **Create GitHub App**. On the next page, note the **App ID** and click **Generate a private key** (saves a `.pem`; keep it outside this directory, e.g. `~/Downloads/app.pem`). Then **Install App** (left sidebar) > install on `myorg` > **All repositories**.
 2. From this directory:
    ```
-   ORG=myorg; REPO=signup; APP_ID=12345; PEM=~/Downloads/app.pem
+   ORG=myorg; APP_ID=12345; PEM=~/Downloads/app.pem
 
-   gh repo create $ORG/$REPO --public --source . --remote $ORG --push
-   gh api -X POST repos/$ORG/$REPO/pages -f 'source[branch]=main' -f 'source[path]=/'
+   gh repo create $ORG/signup --public --source . --remote $ORG --push
+   gh api -X POST repos/$ORG/signup/pages -f 'source[branch]=main' -f 'source[path]=/'
 
    KEY=$(openssl rand -hex 32)
-   printf %s "$KEY"    | gh secret set MASTER_KEY --repo $ORG/$REPO
-   printf %s "$APP_ID" | gh secret set APP_ID     --repo $ORG/$REPO
-   gh secret set APP_PRIVATE_KEY --repo $ORG/$REPO < $PEM
+   printf %s "$KEY"    | gh secret set MASTER_KEY --repo $ORG/signup
+   printf %s "$APP_ID" | gh secret set APP_ID     --repo $ORG/signup
+   gh secret set APP_PRIVATE_KEY --repo $ORG/signup < $PEM
 
    (umask 077; mkdir -p ~/.config/gh_classroom; printf %s "$KEY" > ~/.config/gh_classroom/$ORG.key)
    shred -u $PEM    # the App key now lives only in the Actions secret
    ```
    GitHub never shows a secret again, so keep `~/.config/gh_classroom/<org>.key` (the `MASTER_KEY` value): `./classroom link` needs it.
-   Any repo name works, except `$ORG.github.io`; if it isn't `signup`, run the commands below with `REPO=<name>`.
    If enabling Pages fails with "Pages creation disabled", allow it under Org settings > Member privileges > Pages creation (Public), then re-run that command.
 
 To update an existing deployment, run `git push $ORG main`.
